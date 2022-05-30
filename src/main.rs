@@ -1,4 +1,4 @@
-use iced::{Application, button, canvas, executor, pick_list, slider, text_input};
+use iced::{button, canvas, executor, pick_list, slider, text_input};
 use palette::FromColor;
 use rand::Rng;
 use strum::IntoEnumIterator;
@@ -6,6 +6,8 @@ use strum::IntoEnumIterator;
 mod sort;
 
 fn main() -> iced::Result {
+    use iced::Application;
+
     SortingAnimations::run(iced::Settings {
         antialiasing: true,
         window:  iced::window::Settings {
@@ -46,7 +48,7 @@ enum Message {
 
 impl Message {}
 
-impl Application for SortingAnimations {
+impl iced::Application for SortingAnimations {
     type Executor = executor::Default;
     type Message = Message;
     type Flags = ();
