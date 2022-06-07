@@ -954,6 +954,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccf9133ceb345ec640047d5597fb8aa88e9cf74ce2d0277a9a62e2d6ed4a8148"
 dependencies = [
  "bitflags",
+ "palette",
  "wasm-timer",
 ]
 
