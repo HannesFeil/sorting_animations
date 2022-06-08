@@ -7,7 +7,10 @@ type SyncLock = sync::Arc<sync::Mutex<SortLock>>;
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter)]
 pub enum Sort {
     BubbleSort,
+    ShakerSort,
     InsertionSort,
+    SelectionSort,
+    DoubleSelectionSort,
 }
 
 impl Default for Sort {
@@ -26,7 +29,10 @@ impl Sort {
     fn sort(&self, size: usize, lock: SyncLock) {
         match self {
             Sort::BubbleSort => self.bubble_sort(size, &lock),
+            Sort::ShakerSort => self.shaker_sort(size, &lock),
             Sort::InsertionSort => self.insertion_sort(size, &lock),
+            Sort::SelectionSort => self.selection_sort(size, &lock),
+            Sort::DoubleSelectionSort => self.double_selection_sort(size, &lock),
         }
     }
 
@@ -35,6 +41,22 @@ impl Sort {
             for j in 0..size - i {
                 if self.cmp_two(lock, j, j + 1).is_gt() {
                     self.swap(lock, j, j + 1);
+                }
+            }
+        }
+    }
+
+    fn shaker_sort(&self, size: usize, lock: &SyncLock) {
+        for i in 1..size / 2 {
+            for j in i - 1..size - i {
+                if self.cmp_two(lock, j, j + 1).is_gt() {
+                    self.swap(lock, j, j + 1);
+                }
+            }
+
+            for j in (i..size - i).rev() {
+                if self.cmp_two(lock, j, j - 1).is_lt() {
+                    self.swap(lock, j, j - 1);
                 }
             }
         }
@@ -54,15 +76,62 @@ impl Sort {
         }
     }
 
+    fn selection_sort(&self, size: usize, lock: &SyncLock) {
+        for i in 0..size - 1 {
+            let mut min = i;
+            for j in i + 1..size {
+                if self.cmp_two(lock, min, j).is_gt() {
+                    min = j;
+                }
+            }
+            if min != i {
+                self.swap(lock, min, i);
+            }
+        }
+    }
+
+    fn double_selection_sort(&self, size: usize, lock: &SyncLock) {
+        for i in 0..size / 2 {
+            let mut min = i;
+            let mut max = size - i - 1;
+
+            for j in i + 1..size - i {
+                if self.cmp_two(lock, min, j).is_gt() {
+                    min = j;
+                }
+            }
+            if min != i {
+                self.swap(lock, min, i);
+            }
+
+            for j in (i + 1..size - i - 1).rev() {
+                if self.cmp_two(lock, max, j).is_lt() {
+                    max = j;
+                }
+            }
+            if max != size - i - 1 {
+                self.swap(lock, max, size - i - 1);
+            }
+        }
+    }
+
     pub fn max_speed(&self) -> u32 {
         match self {
-            Sort::BubbleSort | Sort::InsertionSort => 500,
+            Sort::BubbleSort
+            | Sort::ShakerSort
+            | Sort::InsertionSort
+            | Sort::SelectionSort
+            | Sort::DoubleSelectionSort => 500,
         }
     }
 
     pub fn calculate_ticks(&self, speed: u32) -> u64 {
         match self {
-            Sort::BubbleSort | Sort::InsertionSort => (speed * speed) as u64,
+            Sort::BubbleSort
+            | Sort::ShakerSort
+            | Sort::InsertionSort
+            | Sort::SelectionSort
+            | Sort::DoubleSelectionSort => (speed * speed) as u64,
         }
     }
 }
@@ -228,6 +297,10 @@ impl Sorter {
 
         lock.comparisons = 0;
         lock.accesses = 0;
+    }
+
+    pub fn view(&self) -> gui::View {
+        self.lock.lock().unwrap().array_state.get_view()
     }
 
     pub fn set_view(&self, view: gui::View) {

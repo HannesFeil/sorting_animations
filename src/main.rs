@@ -3,6 +3,7 @@ use std::time;
 const TITLE: &str = "Sorting Animations";
 const PADDING: u16 = 15;
 const INITIAL_NUMBERS: usize = 100;
+const MIN_NUMBERS: usize = 10;
 const DELAY_TIME: time::Duration = time::Duration::from_millis(10);
 
 mod array;
@@ -125,9 +126,12 @@ impl iced::Application for SortingAnimations {
             Message::NumbersSelected => {
                 self.sorter.kill_sort();
 
-                self.sorter.operate_array(|array| {
-                    array.initialize(self.changed_numbers.unwrap_or(INITIAL_NUMBERS))
+                self.changed_numbers = self.changed_numbers.map_or(Some(INITIAL_NUMBERS), |n| {
+                    Some(std::cmp::max(MIN_NUMBERS, n))
                 });
+
+                self.sorter
+                    .operate_array(|array| array.initialize(self.changed_numbers.unwrap()));
 
                 self.sorter.start_sort();
             }
@@ -167,7 +171,7 @@ impl iced::Application for SortingAnimations {
                     self.sorter.sort().max_speed(),
                     self.changed_numbers
                         .map_or(String::new(), |x| x.to_string()),
-                    gui::View::default(),
+                    self.sorter.view(),
                 ),
             );
 

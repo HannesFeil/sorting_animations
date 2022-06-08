@@ -56,6 +56,10 @@ impl ArrayState {
         self.step = Step::None;
     }
 
+    pub fn get_view(&self) -> gui::View {
+        self.view.clone()
+    }
+
     pub fn set_view(&mut self, view: gui::View) {
         self.view = view;
     }
