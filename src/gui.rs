@@ -17,9 +17,13 @@ const GREEN: iced::Color = iced::Color {
     a: 1f32,
 };
 
+const CIRCLE_ACC: u32 = 100;
+
 #[derive(Clone, Debug, PartialEq, Eq, strum::EnumIter)]
 pub enum View {
     Default,
+    Colors,
+    Circle,
 }
 
 impl Default for View {
@@ -51,10 +55,14 @@ impl View {
                     let index = ((x as f32 / bounds.width) * numbers.len() as f32) as usize;
                     let height = (numbers[index] as f32 / numbers.len() as f32) * bounds.height;
 
-                    let color = match step {
-                        array::Step::Comparison(x, y) if index == x || index == y => GREEN,
-                        array::Step::Access(x, y) if index == x || index == y => RED,
-                        _ => WHITE,
+                    let color = if step.contains(index) {
+                        if step.is_comparison() {
+                            GREEN
+                        } else {
+                            RED
+                        }
+                    } else {
+                        WHITE
                     };
 
                     frame.fill_rectangle(
@@ -62,6 +70,107 @@ impl View {
                         iced::Size::new(1.0, height),
                         color,
                     );
+                }
+
+                vec![frame.into_geometry()]
+            }
+            View::Colors => {
+                use palette::FromColor;
+
+                let mut frame = canvas::Frame::new(bounds.size());
+
+                for x in 0..bounds.width as u32 {
+                    let index = ((x as f32 / bounds.width) * numbers.len() as f32) as usize;
+                    let height = bounds.height; //numbers[index] as f32 / numbers.len() as f32) * bounds.height;
+
+                    let color = if step.contains(index) {
+                        if step.is_comparison() {
+                            WHITE
+                        } else {
+                            BLACK
+                        }
+                    } else {
+                        palette::rgb::Rgb::from_color(palette::Hsv::new(
+                            numbers[index] as f32 / numbers.len() as f32 * 360.0,
+                            1f32,
+                            1f32,
+                        ))
+                        .into()
+                    };
+
+                    frame.fill_rectangle(
+                        iced::Point::new(x as f32, bounds.height - height),
+                        iced::Size::new(1.0, height),
+                        color,
+                    );
+                }
+
+                vec![frame.into_geometry()]
+            }
+            View::Circle => {
+                use std::f32::consts::FRAC_PI_4;
+
+                let mut frame = canvas::Frame::new(bounds.size());
+                frame.fill_rectangle(iced::Point::ORIGIN, bounds.size(), BLACK);
+
+                let circ = canvas::Path::circle(
+                    iced::Point::new(bounds.width / 2.0, bounds.height / 2.0),
+                    3.0,
+                );
+
+                let l = 0.4
+                    * std::cmp::min_by(bounds.width, bounds.height, |a, b| {
+                        a.partial_cmp(&b).unwrap()
+                    });
+
+                for i in 0..CIRCLE_ACC {
+                    let r = i as f32 / CIRCLE_ACC as f32;
+
+                    let (mut sin, mut cos) = (r * FRAC_PI_4).sin_cos();
+                    sin *= l;
+                    cos *= l;
+
+                    let mut index = 0.0;
+                    let rn = r / 8.0;
+
+                    let mut flip = true;
+                    for (x, y) in [
+                        (sin, -cos),
+                        (cos, -sin),
+                        (cos, sin),
+                        (sin, cos),
+                        (-sin, cos),
+                        (-cos, sin),
+                        (-cos, -sin),
+                        (-sin, -cos),
+                    ] {
+                        let c_index;
+                        if flip {
+                            c_index = ((index + rn) * numbers.len() as f32) as usize;
+                            index += 0.25;
+                        } else {
+                            c_index = ((index - 0.001 - rn) * numbers.len() as f32) as usize;
+                        }
+
+                        flip = !flip;
+
+                        let d = numbers[c_index] as f32 / numbers.len() as f32;
+                        let color = if step.contains(c_index) {
+                            if step.is_comparison() {
+                                GREEN
+                            } else {
+                                RED
+                            }
+                        } else {
+                            WHITE
+                        };
+
+                        let translation = iced::Vector::new(x * d, y * d);
+
+                        frame.translate(translation.clone());
+                        frame.fill(&circ, color);
+                        frame.translate(translation * -1.0);
+                    }
                 }
 
                 vec![frame.into_geometry()]
@@ -166,7 +275,7 @@ impl Controls {
             );
 
         iced::Row::new()
-            .height(iced::Length::Units(120))
+            .height(iced::Length::Units(100))
             .spacing(5)
             .align_items(iced::Alignment::Center)
             .push(algorithm_controls)

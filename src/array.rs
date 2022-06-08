@@ -4,9 +4,35 @@ use std::cmp;
 
 #[derive(Clone)]
 pub enum Step {
-    Comparison(usize, usize),
-    Access(usize, usize),
+    ComparisonTwo(usize, usize),
+    Comparison(usize),
+    AccessTwo(usize, usize),
+    Access(usize),
     None,
+}
+
+impl Step {
+    pub fn contains(&self, index: usize) -> bool {
+        match self {
+            Step::ComparisonTwo(x, y) | Step::AccessTwo(x, y) => *x == index || *y == index,
+            Step::Comparison(x) | Step::Access(x) => *x == index,
+            Step::None => false,
+        }
+    }
+
+    pub fn is_comparison(&self) -> bool {
+        match self {
+            Step::Comparison(_) | Step::ComparisonTwo(_, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_access(&self) -> bool {
+        match self {
+            Step::Access(_) | Step::AccessTwo(_, _) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -59,27 +85,27 @@ impl ArrayState {
     }
 
     pub fn cmp_two(&mut self, a: usize, b: usize) -> cmp::Ordering {
-        self.step = Step::Comparison(a, b);
+        self.step = Step::ComparisonTwo(a, b);
         self.numbers[a].cmp(&self.numbers[b])
     }
 
     pub fn cmp(&mut self, index: usize, value: usize) -> cmp::Ordering {
-        self.step = Step::Comparison(index, index);
+        self.step = Step::Comparison(index);
         self.numbers[index].cmp(&value)
     }
 
     pub fn swap(&mut self, a: usize, b: usize) {
-        self.step = Step::Access(a, b);
+        self.step = Step::AccessTwo(a, b);
         self.numbers.swap(a, b);
     }
 
     pub fn get(&mut self, index: usize) -> usize {
-        self.step = Step::Access(index, index);
+        self.step = Step::Access(index);
         self.numbers[index]
     }
 
     pub fn set(&mut self, index: usize, value: usize) {
-        self.step = Step::Access(index, index);
+        self.step = Step::Access(index);
         self.numbers[index] = value;
     }
 }

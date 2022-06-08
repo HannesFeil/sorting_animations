@@ -1,4 +1,4 @@
-use std::{sync, time};
+use std::time;
 
 const TITLE: &str = "Sorting Animations";
 const PADDING: u16 = 15;
