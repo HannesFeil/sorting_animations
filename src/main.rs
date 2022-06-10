@@ -1,3 +1,5 @@
+#![feature(int_log)]
+
 use std::time;
 
 const TITLE: &str = "Sorting Animations";
@@ -168,7 +170,7 @@ impl iced::Application for SortingAnimations {
                     self.sorter.sort(),
                     self.sorter.playing(),
                     self.sorter.speed(),
-                    self.sorter.sort().max_speed(),
+                    sort::MAX_SPEED,
                     self.changed_numbers
                         .map_or(String::new(), |x| x.to_string()),
                     self.sorter.view(),

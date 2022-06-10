@@ -1,8 +1,11 @@
 use crate::{array, gui};
+use rand::Rng;
 use std::{cmp, sync, thread};
 use strum::EnumIter;
 
 type SyncLock = sync::Arc<sync::Mutex<SortLock>>;
+
+pub const MAX_SPEED: u32 = 500;
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter)]
 pub enum Sort {
@@ -11,6 +14,9 @@ pub enum Sort {
     InsertionSort,
     SelectionSort,
     DoubleSelectionSort,
+    StoogeSort,
+    QuickSort,
+    MergeSort,
 }
 
 impl Default for Sort {
@@ -33,6 +39,9 @@ impl Sort {
             Sort::InsertionSort => self.insertion_sort(size, &lock),
             Sort::SelectionSort => self.selection_sort(size, &lock),
             Sort::DoubleSelectionSort => self.double_selection_sort(size, &lock),
+            Sort::StoogeSort => self.stooge_sort(0, size - 1, &lock),
+            Sort::QuickSort => self.quick_sort(0, size - 1, &mut rand::thread_rng(), &lock),
+            Sort::MergeSort => self.merge_sort(0, size - 1, &lock),
         }
     }
 
@@ -115,23 +124,95 @@ impl Sort {
         }
     }
 
-    pub fn max_speed(&self) -> u32 {
-        match self {
-            Sort::BubbleSort
-            | Sort::ShakerSort
-            | Sort::InsertionSort
-            | Sort::SelectionSort
-            | Sort::DoubleSelectionSort => 500,
+    fn stooge_sort(&self, start: usize, end: usize, lock: &SyncLock) {
+        if end == start + 1 && self.cmp_two(lock, start, end).is_gt() {
+            self.swap(lock, start, end);
+        }
+
+        if end > start + 1 {
+            let third = (end - start + 1) / 3;
+            self.stooge_sort(start, end - third, lock);
+            self.stooge_sort(start + third, end, lock);
+            self.stooge_sort(start, end - third, lock);
         }
     }
 
-    pub fn calculate_ticks(&self, speed: u32) -> u64 {
+    fn quick_sort(
+        &self,
+        start: usize,
+        end: usize,
+        rng: &mut rand::prelude::ThreadRng,
+        lock: &SyncLock,
+    ) {
+        if end <= start {
+            return;
+        }
+
+        let mut l = start;
+        let mut r = end - 1;
+
+        while l < r {
+            while l < end && self.cmp_two(lock, l, end).is_lt() {
+                l += 1;
+            }
+
+            while r > start && self.cmp_two(lock, r, end).is_gt() {
+                r -= 1;
+            }
+
+            if l < r {
+                self.swap(lock, l, r);
+            }
+        }
+
+        if self.cmp_two(lock, l, end).is_gt() {
+            self.swap(lock, l, end);
+        }
+
+        if l > start {
+            self.quick_sort(start, l - 1, rng, lock);
+        }
+        if l < end {
+            self.quick_sort(l + 1, end, rng, lock);
+        }
+    }
+
+    fn merge_sort(&self, start: usize, end: usize, lock: &SyncLock) {
+        if end == start + 1 && self.cmp_two(lock, start, end).is_gt() {
+            self.swap(lock, start, end);
+        } else if end > start + 1 {
+            let m = (start + end) / 2;
+            self.merge_sort(start, m, lock);
+            self.merge_sort(m + 1, end, lock);
+
+            let mut tmp = Vec::with_capacity(end - start + 1);
+            let mut l = start;
+            let mut r = m + 1;
+            while tmp.len() < tmp.capacity() {
+                if r > end || l <= m && self.cmp_two(lock, l, r).is_lt() {
+                    tmp.push(self.get(lock, l));
+                    l += 1;
+                } else {
+                    tmp.push(self.get(lock, r));
+                    r += 1;
+                }
+            }
+
+            for (index, val) in tmp.iter().enumerate() {
+                self.set(lock, start + index, *val);
+            }
+        }
+    }
+
+    pub fn calculate_ticks(&self, speed: u64) -> u64 {
         match self {
+            Sort::StoogeSort => speed.pow(3),
             Sort::BubbleSort
             | Sort::ShakerSort
             | Sort::InsertionSort
             | Sort::SelectionSort
-            | Sort::DoubleSelectionSort => (speed * speed) as u64,
+            | Sort::DoubleSelectionSort => speed.pow(2),
+            Sort::QuickSort | Sort::MergeSort => speed * speed.log2() as u64,
         }
     }
 }
@@ -159,7 +240,7 @@ impl Sort {
                         return step(&mut lock.array_state);
                     } else {
                         if playing {
-                            lock.steps = self.calculate_ticks(lock.speed);
+                            lock.steps = cmp::max(1, self.calculate_ticks(lock.speed as u64));
                         }
 
                         drop(lock);
