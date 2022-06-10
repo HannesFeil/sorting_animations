@@ -17,8 +17,6 @@ const GREEN: iced::Color = iced::Color {
     a: 1f32,
 };
 
-const CIRCLE_ACC: u32 = 100;
-
 #[derive(Clone, Debug, PartialEq, Eq, strum::EnumIter)]
 pub enum View {
     Default,
@@ -45,7 +43,8 @@ impl View {
         numbers: &Vec<usize>,
         step: array::Step,
     ) -> Vec<canvas::Geometry> {
-        match self {
+        // let time = std::time::Instant::now();
+        /* let r = */ match self {
             View::Default => {
                 let mut frame = canvas::Frame::new(bounds.size());
 
@@ -108,23 +107,22 @@ impl View {
                 vec![frame.into_geometry()]
             }
             View::Circle => {
-                use std::f32::consts::FRAC_PI_4;
+                use std::f64::consts::FRAC_PI_4;
+
+                const CIRCLE_ACC: u32 = 750;
+                const RECT_SIZE: iced::Size = iced::Size::new(3.0, 3.0);
 
                 let mut frame = canvas::Frame::new(bounds.size());
                 frame.fill_rectangle(iced::Point::ORIGIN, bounds.size(), BLACK);
-
-                let circ = canvas::Path::circle(
-                    iced::Point::new(bounds.width / 2.0, bounds.height / 2.0),
-                    3.0,
-                );
+                frame.translate(iced::Vector::new(bounds.center_x(), bounds.center_y()));
 
                 let l = 0.4
                     * std::cmp::min_by(bounds.width, bounds.height, |a, b| {
                         a.partial_cmp(&b).unwrap()
-                    });
+                    }) as f64;
 
                 for i in 0..CIRCLE_ACC {
-                    let r = i as f32 / CIRCLE_ACC as f32;
+                    let r = i as f64 / CIRCLE_ACC as f64;
 
                     let (mut sin, mut cos) = (r * FRAC_PI_4).sin_cos();
                     sin *= l;
@@ -146,15 +144,15 @@ impl View {
                     ] {
                         let c_index;
                         if flip {
-                            c_index = ((index + rn) * numbers.len() as f32) as usize;
+                            c_index = ((index + rn) * numbers.len() as f64) as usize;
                             index += 0.25;
                         } else {
-                            c_index = ((index - 0.001 - rn) * numbers.len() as f32) as usize;
+                            c_index = ((index - 0.001 - rn) * numbers.len() as f64) as usize;
                         }
 
                         flip = !flip;
 
-                        let d = numbers[c_index] as f32 / numbers.len() as f32;
+                        let d = numbers[c_index] as f64 / numbers.len() as f64;
                         let color = if step.contains(c_index) {
                             if step.is_comparison() {
                                 GREEN
@@ -165,17 +163,19 @@ impl View {
                             WHITE
                         };
 
-                        let translation = iced::Vector::new(x * d, y * d);
+                        let translation = iced::Vector::new((x * d) as f32, (y * d) as f32);
 
                         frame.translate(translation.clone());
-                        frame.fill(&circ, color);
+                        frame.fill_rectangle(iced::Point::ORIGIN, RECT_SIZE, color);
                         frame.translate(translation * -1.0);
                     }
                 }
 
                 vec![frame.into_geometry()]
             }
-        }
+        } //;
+        // println!("Elapsed time: {:?}", time.elapsed());
+        // r
     }
 }
 
