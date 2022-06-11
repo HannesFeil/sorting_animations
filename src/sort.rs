@@ -17,6 +17,7 @@ pub enum Sort {
     StoogeSort,
     QuickSort,
     MergeSort,
+    HeapSort,
 }
 
 impl Default for Sort {
@@ -42,6 +43,7 @@ impl Sort {
             Sort::StoogeSort => self.stooge_sort(0, size - 1, &lock),
             Sort::QuickSort => self.quick_sort(0, size - 1, &mut rand::thread_rng(), &lock),
             Sort::MergeSort => self.merge_sort(0, size - 1, &lock),
+            Sort::HeapSort => self.heap_sort(size - 1, &lock),
         }
     }
 
@@ -204,6 +206,35 @@ impl Sort {
         }
     }
 
+    fn heap_sort(&self, max: usize, lock: &SyncLock) {
+        for i in (0..max / 2 + 1).rev() {
+            self.heapify_down(i, max, lock);
+        }
+        for i in (1..=max).rev() {
+            self.swap(lock, 0, i);
+
+            self.heapify_down(0, i - 1, lock);
+        }
+    }
+
+    fn heapify_down(&self, mut index: usize, max: usize, lock: &SyncLock) {
+        if 2 * index + 1 <= max {
+            let tmp_max = if 2 * index + 2 <= max
+                && self.cmp_two(lock, 2 * index + 1, 2 * index + 2).is_lt()
+            {
+                2 * index + 2
+            } else {
+                2 * index + 1
+            };
+
+            if self.cmp_two(lock, index, tmp_max).is_lt() {
+                self.swap(lock, index, tmp_max);
+
+                self.heapify_down(tmp_max, max, lock);
+            }
+        }
+    }
+
     pub fn calculate_ticks(&self, speed: u64) -> u64 {
         match self {
             Sort::StoogeSort => speed.pow(3),
@@ -212,7 +243,7 @@ impl Sort {
             | Sort::InsertionSort
             | Sort::SelectionSort
             | Sort::DoubleSelectionSort => speed.pow(2),
-            Sort::QuickSort | Sort::MergeSort => speed * speed.log2() as u64,
+            Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => speed * speed.log2() as u64,
         }
     }
 }
