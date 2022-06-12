@@ -44,7 +44,8 @@ impl View {
         step: array::Step,
     ) -> Vec<canvas::Geometry> {
         // let time = std::time::Instant::now();
-        /* let r = */ match self {
+        /* let r = */
+        match self {
             View::Default => {
                 let mut frame = canvas::Frame::new(bounds.size());
 
@@ -107,7 +108,7 @@ impl View {
                 vec![frame.into_geometry()]
             }
             View::Circle => {
-                use std::f64::consts::FRAC_PI_4;
+                use std::f64::consts::{FRAC_PI_4, PI};
 
                 const CIRCLE_ACC: u32 = 750;
                 const RECT_SIZE: iced::Size = iced::Size::new(3.0, 3.0);
@@ -153,6 +154,8 @@ impl View {
                         flip = !flip;
 
                         let d = numbers[c_index] as f64 / numbers.len() as f64;
+                        let translation = iced::Vector::new((x * d) as f32, (y * d) as f32);
+
                         let color = if step.contains(c_index) {
                             if step.is_comparison() {
                                 GREEN
@@ -163,19 +166,35 @@ impl View {
                             WHITE
                         };
 
-                        let translation = iced::Vector::new((x * d) as f32, (y * d) as f32);
-
                         frame.translate(translation.clone());
                         frame.fill_rectangle(iced::Point::ORIGIN, RECT_SIZE, color);
                         frame.translate(translation * -1.0);
                     }
                 }
 
+                for v in step.values() {
+                    let (mut sin, mut cos) = (v as f64 / numbers.len() as f64 * 2.0 * PI).sin_cos();
+                    sin *= l;
+                    cos *= l;
+
+                    let d = numbers[v] as f64 / numbers.len() as f64;
+
+                    let translation = iced::Vector::new((sin * d) as f32, (-cos * d) as f32);
+
+                    frame.translate(translation.clone());
+                    frame.fill_rectangle(
+                        iced::Point::ORIGIN,
+                        RECT_SIZE,
+                        if step.is_comparison() { GREEN } else { RED },
+                    );
+                    frame.translate(translation * -1.0);
+                }
+
                 vec![frame.into_geometry()]
             }
         } //;
-        // println!("Elapsed time: {:?}", time.elapsed());
-        // r
+          // println!("Elapsed time: {:?}", time.elapsed());
+          // r
     }
 }
 

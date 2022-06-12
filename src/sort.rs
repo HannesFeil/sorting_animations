@@ -1,5 +1,4 @@
 use crate::{array, gui};
-use rand::Rng;
 use std::{cmp, sync, thread};
 use strum::EnumIter;
 
@@ -11,9 +10,12 @@ pub const MAX_SPEED: u32 = 500;
 pub enum Sort {
     BubbleSort,
     ShakerSort,
+    ExchangeSort,
+    CycleSort,
     InsertionSort,
     SelectionSort,
     DoubleSelectionSort,
+    StrandSort,
     StoogeSort,
     QuickSort,
     MergeSort,
@@ -44,6 +46,9 @@ impl Sort {
             Sort::QuickSort => self.quick_sort(0, size - 1, &mut rand::thread_rng(), &lock),
             Sort::MergeSort => self.merge_sort(0, size - 1, &lock),
             Sort::HeapSort => self.heap_sort(size - 1, &lock),
+            Sort::ExchangeSort => self.exchange_sort(size, &lock),
+            Sort::CycleSort => self.cycle_sort(size, &lock),
+            Sort::StrandSort => self.strand_sort(size, &lock),
         }
     }
 
@@ -68,6 +73,44 @@ impl Sort {
             for j in (i..size - i).rev() {
                 if self.cmp_two(lock, j, j - 1).is_lt() {
                     self.swap(lock, j, j - 1);
+                }
+            }
+        }
+    }
+
+    fn exchange_sort(&self, size: usize, lock: &SyncLock) {
+        for i in 0..size - 1 {
+            for j in i + 1..size {
+                if self.cmp_two(lock, i, j).is_gt() {
+                    self.swap(lock, i, j);
+                }
+            }
+        }
+    }
+
+    fn cycle_sort(&self, size: usize, lock: &SyncLock) {
+        let mut buf = vec![false; size];
+        for i in 0..size - 1 {
+            if buf[i] {
+                continue;
+            }
+
+            let mut current = self.get(lock, i);
+            loop {
+                let index = (0..size)
+                    .filter(|x| *x != i && self.cmp(lock, *x, current).is_lt())
+                    .count();
+
+                if index != i {
+                    buf[index] = true;
+
+                    let new = self.get(lock, index);
+                    self.set(lock, index, current);
+                    current = new;
+                } else {
+                    self.set(lock, i, current);
+
+                    break;
                 }
             }
         }
@@ -122,6 +165,41 @@ impl Sort {
             }
             if max != size - i - 1 {
                 self.swap(lock, max, size - i - 1);
+            }
+        }
+    }
+
+    fn strand_sort(&self, size: usize, lock: &SyncLock) {
+        let mut index = 0;
+        while index < size {
+            let mut len = 1;
+
+            for j in index + 1..size {
+                if self.cmp_two(lock, index + len - 1, j).is_lt() && j != index + len {
+                    self.swap(lock, j, index + len);
+                    len += 1;
+                }
+            }
+
+            let old_index = index;
+            index += len;
+
+            let mut tmp = Vec::with_capacity(index);
+
+            let mut x = 0;
+            let mut y = 0;
+            for _ in 0..index {
+                if x >= old_index || y < len && self.cmp_two(lock, old_index + y, x).is_lt() {
+                    tmp.push(self.get(lock, old_index + y));
+                    y += 1;
+                } else {
+                    tmp.push(self.get(lock, x));
+                    x += 1;
+                }
+            }
+
+            for (i, v) in tmp.iter().enumerate() {
+                self.set(lock, i, *v);
             }
         }
     }
@@ -207,7 +285,7 @@ impl Sort {
     }
 
     fn heap_sort(&self, max: usize, lock: &SyncLock) {
-        for i in (0..max / 2 + 1).rev() {
+        for i in (0..=max / 2).rev() {
             self.heapify_down(i, max, lock);
         }
         for i in (1..=max).rev() {
@@ -217,7 +295,7 @@ impl Sort {
         }
     }
 
-    fn heapify_down(&self, mut index: usize, max: usize, lock: &SyncLock) {
+    fn heapify_down(&self, index: usize, max: usize, lock: &SyncLock) {
         if 2 * index + 1 <= max {
             let tmp_max = if 2 * index + 2 <= max
                 && self.cmp_two(lock, 2 * index + 1, 2 * index + 2).is_lt()
@@ -240,9 +318,12 @@ impl Sort {
             Sort::StoogeSort => speed.pow(3),
             Sort::BubbleSort
             | Sort::ShakerSort
+            | Sort::ExchangeSort
+            | Sort::CycleSort
             | Sort::InsertionSort
             | Sort::SelectionSort
-            | Sort::DoubleSelectionSort => speed.pow(2),
+            | Sort::DoubleSelectionSort
+            | Sort::StrandSort => speed.pow(2),
             Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => speed * speed.log2() as u64,
         }
     }

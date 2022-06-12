@@ -33,6 +33,14 @@ impl Step {
             _ => false,
         }
     }
+
+    pub fn values(&self) -> Vec<usize> {
+        match *self {
+            Step::ComparisonTwo(x, y) | Step::AccessTwo(x, y) => vec![x, y],
+            Step::Comparison(x) | Step::Access(x) => vec![x],
+            Step::None => Vec::new(),
+        }
+    }
 }
 
 #[derive(Clone)]
