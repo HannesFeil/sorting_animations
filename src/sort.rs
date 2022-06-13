@@ -12,14 +12,21 @@ pub enum Sort {
     ShakerSort,
     ExchangeSort,
     CycleSort,
+    CombSort,
+    OddEvenSort,
     InsertionSort,
+    ShellSort,
     SelectionSort,
     DoubleSelectionSort,
     StrandSort,
     StoogeSort,
+    SlowSort,
     QuickSort,
     MergeSort,
     HeapSort,
+    CountingSort,
+    RadixSort10,
+    RadixSort2,
 }
 
 impl Default for Sort {
@@ -49,6 +56,13 @@ impl Sort {
             Sort::ExchangeSort => self.exchange_sort(size, &lock),
             Sort::CycleSort => self.cycle_sort(size, &lock),
             Sort::StrandSort => self.strand_sort(size, &lock),
+            Sort::CombSort => self.comb_sort(size, &lock),
+            Sort::OddEvenSort => self.odd_even_sort(size, &lock),
+            Sort::ShellSort => self.shell_sort(size, &lock),
+            Sort::CountingSort => self.counting_sort(size, size, |x| x, &lock),
+            Sort::RadixSort10 => self.radix_sort(size, 10, &lock),
+            Sort::RadixSort2 => self.radix_sort(size, 2, &lock),
+            Sort::SlowSort => self.slow_sort(0, size - 1, &lock),
         }
     }
 
@@ -116,6 +130,44 @@ impl Sort {
         }
     }
 
+    fn comb_sort(&self, size: usize, lock: &SyncLock) {
+        let mut gap = size;
+        const SHRINK: f32 = 1.3;
+        let mut sorted = false;
+
+        while !sorted {
+            gap = (gap as f32 / SHRINK) as usize;
+            if gap <= 1 {
+                gap = 1;
+                sorted = true;
+            }
+
+            for i in 0..size - gap {
+                if self.cmp_two(lock, i, i + gap).is_gt() {
+                    self.swap(lock, i, i + gap);
+                    sorted = false;
+                }
+            }
+        }
+    }
+
+    fn odd_even_sort(&self, size: usize, lock: &SyncLock) {
+        let mut sorted = false;
+
+        while !sorted {
+            sorted = true;
+
+            for start in 0..=1 {
+                for i in (start..size - 1).step_by(2) {
+                    if self.cmp_two(lock, i, i + 1).is_gt() {
+                        self.swap(lock, i, i + 1);
+                        sorted = false;
+                    }
+                }
+            }
+        }
+    }
+
     fn insertion_sort(&self, size: usize, lock: &SyncLock) {
         for i in 1..size {
             let current = self.get(lock, i);
@@ -127,6 +179,27 @@ impl Sort {
             }
 
             self.set(lock, j, current);
+        }
+    }
+
+    fn shell_sort(&self, size: usize, lock: &SyncLock) {
+        let mut gap = size;
+
+        while gap > 1 {
+            gap = cmp::max(1, gap / 2);
+
+            for i in gap..size {
+                let tmp = self.get(lock, i);
+
+                let mut j = i;
+
+                while j >= gap && self.cmp(lock, j - gap, tmp).is_gt() {
+                    self.set(lock, j, self.get(lock, j - gap));
+                    j -= gap;
+                }
+
+                self.set(lock, j, tmp);
+            }
         }
     }
 
@@ -214,6 +287,20 @@ impl Sort {
             self.stooge_sort(start, end - third, lock);
             self.stooge_sort(start + third, end, lock);
             self.stooge_sort(start, end - third, lock);
+        }
+    }
+
+    fn slow_sort(&self, start: usize, end: usize, lock: &SyncLock) {
+        if start < end {
+            let m = (start + end) / 2;
+            self.slow_sort(start, m, lock);
+            self.slow_sort(m + 1, end, lock);
+
+            if self.cmp_two(lock, m, end).is_gt() {
+                self.swap(lock, m, end);
+            }
+
+            self.slow_sort(start, end - 1, lock);
         }
     }
 
@@ -313,18 +400,59 @@ impl Sort {
         }
     }
 
+    fn counting_sort(
+        &self,
+        size: usize,
+        buckets: usize,
+        transform: impl Fn(usize) -> usize,
+        lock: &SyncLock,
+    ) {
+        let mut keys = vec![0; buckets];
+        let mut vals = Vec::with_capacity(size);
+
+        for i in 0..size {
+            vals.push(self.get(lock, i));
+            keys[transform(*vals.last().unwrap() - 1)] += 1;
+        }
+
+        vals.reverse();
+
+        for i in 1..buckets {
+            keys[i] += keys[i - 1];
+        }
+
+        for v in vals {
+            let key = transform(v - 1);
+            keys[key] -= 1;
+            self.set(lock, keys[key], v);
+        }
+    }
+
+    fn radix_sort(&self, size: usize, base: usize, lock: &SyncLock) {
+        let mut i = 1;
+
+        while size / i > 0 {
+            self.counting_sort(size, base, |x| (x / i) % base, lock);
+            i *= base;
+        }
+    }
+
     pub fn calculate_ticks(&self, speed: u64) -> u64 {
         match self {
-            Sort::StoogeSort => speed.pow(3),
+            Sort::StoogeSort | Sort::SlowSort => speed.pow(3),
             Sort::BubbleSort
             | Sort::ShakerSort
             | Sort::ExchangeSort
             | Sort::CycleSort
+            | Sort::CombSort
+            | Sort::OddEvenSort
             | Sort::InsertionSort
+            | Sort::ShellSort
             | Sort::SelectionSort
             | Sort::DoubleSelectionSort
             | Sort::StrandSort => speed.pow(2),
             Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => speed * speed.log2() as u64,
+            Sort::CountingSort | Sort::RadixSort10 | Sort::RadixSort2 => speed,
         }
     }
 }
