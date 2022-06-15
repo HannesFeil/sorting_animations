@@ -4,7 +4,7 @@ use strum::EnumIter;
 
 type SyncLock = sync::Arc<sync::Mutex<SortLock>>;
 
-pub const MAX_SPEED: u32 = 500;
+pub const MAX_SPEED: u32 = 100;
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter)]
 pub enum Sort {
@@ -437,22 +437,24 @@ impl Sort {
         }
     }
 
-    pub fn calculate_ticks(&self, speed: u64) -> u64 {
+    pub fn calculate_max_ticks(&self, numbers: u64) -> u64 {
         match self {
-            Sort::StoogeSort | Sort::SlowSort => speed.pow(3),
             Sort::BubbleSort
             | Sort::ShakerSort
             | Sort::ExchangeSort
             | Sort::CycleSort
-            | Sort::CombSort
             | Sort::OddEvenSort
             | Sort::InsertionSort
-            | Sort::ShellSort
             | Sort::SelectionSort
-            | Sort::DoubleSelectionSort
-            | Sort::StrandSort => speed.pow(2),
-            Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => speed * speed.log2() as u64,
-            Sort::CountingSort | Sort::RadixSort10 | Sort::RadixSort2 => speed,
+            | Sort::DoubleSelectionSort => (numbers / 15).pow(2),
+            Sort::StrandSort => (numbers / 40 + 1).pow(2),
+            Sort::CombSort | Sort::ShellSort => (numbers / 100 + 1).pow(2),
+            Sort::StoogeSort => (numbers / 15 + 1).pow(3),
+            Sort::SlowSort => numbers.pow(numbers.log2() / 3),
+            Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => {
+                (numbers / 70 + 2) * (numbers / 70 + 2).log2() as u64
+            }
+            Sort::CountingSort | Sort::RadixSort10 | Sort::RadixSort2 => numbers / 50,
         }
     }
 }
@@ -480,7 +482,15 @@ impl Sort {
                         return step(&mut lock.array_state);
                     } else {
                         if playing {
-                            lock.steps = cmp::max(1, self.calculate_ticks(lock.speed as u64));
+                            lock.steps = cmp::max(
+                                1,
+                                cmp::min(
+                                    1000000,
+                                    ((lock.speed as f32 / MAX_SPEED as f32)
+                                        * self.calculate_max_ticks(lock.array_state.size() as u64)
+                                            as f32) as u64,
+                                ),
+                            );
                         }
 
                         drop(lock);
