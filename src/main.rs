@@ -7,10 +7,12 @@ const PADDING: u16 = 15;
 const INITIAL_NUMBERS: usize = 100;
 const MIN_NUMBERS: usize = 10;
 const DELAY_TIME: time::Duration = time::Duration::from_millis(10);
+const MAX_SPEED: u32 = 100;
+const MAX_STEPS: u64 = 5000;
 
 mod array;
 mod gui;
-mod sort;
+mod sorting;
 
 pub fn main() -> iced::Result {
     use iced::Application;
@@ -41,7 +43,7 @@ pub enum Message {
     Step,
     Tick,
 
-    SortSelected(sort::Sort),
+    SortSelected(sorting::Sort),
     ViewSelected(gui::View),
     SpeedSelected(u32),
     NumbersInput(String),
@@ -50,7 +52,9 @@ pub enum Message {
 
 struct SortingAnimations {
     controls: gui::Controls,
-    sorter: sort::Sorter,
+    sorter: sorting::Sorter,
+    playing: bool,
+    speed: u32,
     changed_numbers: Option<usize>,
     reset_stats: bool,
 }
@@ -63,14 +67,16 @@ impl iced::Application for SortingAnimations {
     fn new(_: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         let mut animations = SortingAnimations {
             controls: gui::Controls::default(),
-            sorter: sort::Sorter::new(array::ArrayState::new(
+            sorter: sorting::Sorter::new(array::ArrayState::new(
                 INITIAL_NUMBERS,
                 gui::View::default(),
             )),
+            playing: false,
+            speed: 1,
             changed_numbers: Some(INITIAL_NUMBERS),
             reset_stats: false,
         };
-        animations.initialize_sort(sort::Sort::default());
+        animations.initialize_sort(sorting::Sort::default());
 
         (animations, iced::Command::none())
     }
@@ -87,12 +93,12 @@ impl iced::Application for SortingAnimations {
                     self.reset_stats = false;
                 }
 
-                self.sorter.set_playing(!self.sorter.playing());
+                self.playing = !self.playing;
             }
             Message::Shuffle => {
                 self.initialize_sort(self.sorter.sort());
 
-                self.sorter.operate_array(array::ArrayState::shuffle);
+                self.sorter.operate_array(|array| array.shuffle());
             }
             Message::Step => {
                 if self.reset_stats {
@@ -103,8 +109,11 @@ impl iced::Application for SortingAnimations {
                 self.sorter.step();
             }
             Message::Tick => {
-                if !self.sorter.check_alive() {
+                if !self.sorter.alive() {
+                    self.playing = false;
                     self.initialize_sort(self.sorter.sort());
+                } else if self.playing {
+                    self.sorter.tick(self.speed as f32 / MAX_SPEED as f32);
                 }
             }
             Message::SortSelected(sort) => {
@@ -114,7 +123,7 @@ impl iced::Application for SortingAnimations {
                 self.sorter.set_view(view);
             }
             Message::SpeedSelected(speed) => {
-                self.sorter.set_speed(speed);
+                self.speed = speed;
             }
             Message::NumbersInput(nums) => {
                 if nums.trim().is_empty() {
@@ -168,9 +177,9 @@ impl iced::Application for SortingAnimations {
             .push(
                 self.controls.view(
                     self.sorter.sort(),
-                    self.sorter.playing(),
-                    self.sorter.speed(),
-                    sort::MAX_SPEED,
+                    self.playing,
+                    self.speed,
+                    MAX_SPEED,
                     self.changed_numbers
                         .map_or(String::new(), |x| x.to_string()),
                     self.sorter.view(),
@@ -182,8 +191,9 @@ impl iced::Application for SortingAnimations {
 }
 
 impl SortingAnimations {
-    fn initialize_sort(&mut self, sort: sort::Sort) {
+    fn initialize_sort(&mut self, sort: sorting::Sort) {
         self.reset_stats = true;
+        self.playing = false;
 
         self.sorter.kill_sort();
         self.sorter.operate_array(|a| a.clear_step());

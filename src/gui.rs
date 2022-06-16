@@ -1,4 +1,4 @@
-use crate::{array, sort, Message, PADDING};
+use crate::{array, sorting, Message, PADDING};
 use iced::{button, canvas, pick_list, slider, text_input};
 use strum::IntoEnumIterator;
 
@@ -43,164 +43,178 @@ impl View {
         numbers: &Vec<usize>,
         step: array::Step,
     ) -> Vec<canvas::Geometry> {
-        // let time = std::time::Instant::now();
-        /* let r = */
         match self {
-            View::Default => {
-                let mut frame = canvas::Frame::new(bounds.size());
+            View::Default => View::draw_default(bounds, numbers, step),
+            View::Colors => View::draw_colors(bounds, numbers, step),
+            View::Circle => View::draw_circle(bounds, numbers, step),
+        }
+    }
 
-                frame.fill_rectangle(iced::Point::ORIGIN, bounds.size(), BLACK);
+    fn draw_default(
+        bounds: iced::Rectangle,
+        numbers: &Vec<usize>,
+        step: array::Step,
+    ) -> Vec<canvas::Geometry> {
+        let mut frame = canvas::Frame::new(bounds.size());
 
-                for x in 0..bounds.width as u32 {
-                    let index = ((x as f32 / bounds.width) * numbers.len() as f32) as usize;
-                    let height = (numbers[index] as f32 / numbers.len() as f32) * bounds.height;
+        frame.fill_rectangle(iced::Point::ORIGIN, bounds.size(), BLACK);
 
-                    let color = if step.contains(index) {
-                        if step.is_comparison() {
-                            GREEN
-                        } else {
-                            RED
-                        }
-                    } else {
-                        WHITE
-                    };
+        for x in 0..bounds.width as u32 {
+            let index = ((x as f32 / bounds.width) * numbers.len() as f32) as usize;
+            let height = (numbers[index] as f32 / numbers.len() as f32) * bounds.height;
 
-                    frame.fill_rectangle(
-                        iced::Point::new(x as f32, bounds.height - height),
-                        iced::Size::new(1.0, height),
-                        color,
-                    );
+            let color = if step.contains(index) {
+                if step.is_comparison() {
+                    GREEN
+                } else {
+                    RED
+                }
+            } else {
+                WHITE
+            };
+
+            frame.fill_rectangle(
+                iced::Point::new(x as f32, bounds.height - height),
+                iced::Size::new(1.0, height),
+                color,
+            );
+        }
+
+        vec![frame.into_geometry()]
+    }
+
+    fn draw_colors(
+        bounds: iced::Rectangle,
+        numbers: &Vec<usize>,
+        step: array::Step,
+    ) -> Vec<canvas::Geometry> {
+        use palette::FromColor;
+
+        let mut frame = canvas::Frame::new(bounds.size());
+
+        for x in 0..bounds.width as u32 {
+            let index = ((x as f32 / bounds.width) * numbers.len() as f32) as usize;
+            let height = bounds.height; //numbers[index] as f32 / numbers.len() as f32) * bounds.height;
+
+            let color = if step.contains(index) {
+                if step.is_comparison() {
+                    WHITE
+                } else {
+                    BLACK
+                }
+            } else {
+                palette::rgb::Rgb::from_color(palette::Hsv::new(
+                    numbers[index] as f32 / numbers.len() as f32 * 360.0,
+                    1f32,
+                    1f32,
+                ))
+                .into()
+            };
+
+            frame.fill_rectangle(
+                iced::Point::new(x as f32, bounds.height - height),
+                iced::Size::new(1.0, height),
+                color,
+            );
+        }
+
+        vec![frame.into_geometry()]
+    }
+
+    fn draw_circle(
+        bounds: iced::Rectangle,
+        numbers: &Vec<usize>,
+        step: array::Step,
+    ) -> Vec<canvas::Geometry> {
+        use std::f64::consts::{FRAC_PI_4, PI};
+
+        const CIRCLE_ACC: u32 = 750;
+        const RECT_SIZE: iced::Size = iced::Size::new(3.0, 3.0);
+
+        let mut frame = canvas::Frame::new(bounds.size());
+        frame.fill_rectangle(iced::Point::ORIGIN, bounds.size(), BLACK);
+        frame.translate(iced::Vector::new(bounds.center_x(), bounds.center_y()));
+
+        let l = 0.4
+            * std::cmp::min_by(bounds.width, bounds.height, |a, b| {
+                a.partial_cmp(&b).unwrap()
+            }) as f64;
+
+        for i in 0..CIRCLE_ACC {
+            let r = i as f64 / CIRCLE_ACC as f64;
+
+            let (mut sin, mut cos) = (r * FRAC_PI_4).sin_cos();
+            sin *= l;
+            cos *= l;
+
+            let mut index = 0.0;
+            let rn = r / 8.0;
+
+            let mut flip = true;
+            for (x, y) in [
+                (sin, -cos),
+                (cos, -sin),
+                (cos, sin),
+                (sin, cos),
+                (-sin, cos),
+                (-cos, sin),
+                (-cos, -sin),
+                (-sin, -cos),
+            ] {
+                let c_index;
+                if flip {
+                    c_index = ((index + rn) * numbers.len() as f64) as usize;
+                    index += 0.25;
+                } else {
+                    c_index = ((index - 0.001 - rn) * numbers.len() as f64) as usize;
                 }
 
-                vec![frame.into_geometry()]
-            }
-            View::Colors => {
-                use palette::FromColor;
+                flip = !flip;
 
-                let mut frame = canvas::Frame::new(bounds.size());
+                let d = numbers[c_index] as f64 / numbers.len() as f64;
+                let translation = iced::Vector::new((x * d) as f32, (y * d) as f32);
 
-                for x in 0..bounds.width as u32 {
-                    let index = ((x as f32 / bounds.width) * numbers.len() as f32) as usize;
-                    let height = bounds.height; //numbers[index] as f32 / numbers.len() as f32) * bounds.height;
-
-                    let color = if step.contains(index) {
-                        if step.is_comparison() {
-                            WHITE
-                        } else {
-                            BLACK
-                        }
+                let color = if step.contains(c_index) {
+                    if step.is_comparison() {
+                        GREEN
                     } else {
-                        palette::rgb::Rgb::from_color(palette::Hsv::new(
-                            numbers[index] as f32 / numbers.len() as f32 * 360.0,
-                            1f32,
-                            1f32,
-                        ))
-                        .into()
-                    };
-
-                    frame.fill_rectangle(
-                        iced::Point::new(x as f32, bounds.height - height),
-                        iced::Size::new(1.0, height),
-                        color,
-                    );
-                }
-
-                vec![frame.into_geometry()]
-            }
-            View::Circle => {
-                use std::f64::consts::{FRAC_PI_4, PI};
-
-                const CIRCLE_ACC: u32 = 750;
-                const RECT_SIZE: iced::Size = iced::Size::new(3.0, 3.0);
-
-                let mut frame = canvas::Frame::new(bounds.size());
-                frame.fill_rectangle(iced::Point::ORIGIN, bounds.size(), BLACK);
-                frame.translate(iced::Vector::new(bounds.center_x(), bounds.center_y()));
-
-                let l = 0.4
-                    * std::cmp::min_by(bounds.width, bounds.height, |a, b| {
-                        a.partial_cmp(&b).unwrap()
-                    }) as f64;
-
-                for i in 0..CIRCLE_ACC {
-                    let r = i as f64 / CIRCLE_ACC as f64;
-
-                    let (mut sin, mut cos) = (r * FRAC_PI_4).sin_cos();
-                    sin *= l;
-                    cos *= l;
-
-                    let mut index = 0.0;
-                    let rn = r / 8.0;
-
-                    let mut flip = true;
-                    for (x, y) in [
-                        (sin, -cos),
-                        (cos, -sin),
-                        (cos, sin),
-                        (sin, cos),
-                        (-sin, cos),
-                        (-cos, sin),
-                        (-cos, -sin),
-                        (-sin, -cos),
-                    ] {
-                        let c_index;
-                        if flip {
-                            c_index = ((index + rn) * numbers.len() as f64) as usize;
-                            index += 0.25;
-                        } else {
-                            c_index = ((index - 0.001 - rn) * numbers.len() as f64) as usize;
-                        }
-
-                        flip = !flip;
-
-                        let d = numbers[c_index] as f64 / numbers.len() as f64;
-                        let translation = iced::Vector::new((x * d) as f32, (y * d) as f32);
-
-                        let color = if step.contains(c_index) {
-                            if step.is_comparison() {
-                                GREEN
-                            } else {
-                                RED
-                            }
-                        } else {
-                            WHITE
-                        };
-
-                        frame.translate(translation.clone());
-                        frame.fill_rectangle(iced::Point::ORIGIN, RECT_SIZE, color);
-                        frame.translate(translation * -1.0);
+                        RED
                     }
-                }
+                } else {
+                    WHITE
+                };
 
-                for v in step.values() {
-                    let (mut sin, mut cos) = (v as f64 / numbers.len() as f64 * 2.0 * PI).sin_cos();
-                    sin *= l;
-                    cos *= l;
-
-                    let d = numbers[v] as f64 / numbers.len() as f64;
-
-                    let translation = iced::Vector::new((sin * d) as f32, (-cos * d) as f32);
-
-                    frame.translate(translation.clone());
-                    frame.fill_rectangle(
-                        iced::Point::ORIGIN,
-                        RECT_SIZE,
-                        if step.is_comparison() { GREEN } else { RED },
-                    );
-                    frame.translate(translation * -1.0);
-                }
-
-                vec![frame.into_geometry()]
+                frame.translate(translation.clone());
+                frame.fill_rectangle(iced::Point::ORIGIN, RECT_SIZE, color);
+                frame.translate(translation * -1.0);
             }
-        } //;
-          // println!("Elapsed time: {:?}", time.elapsed());
-          // r
+        }
+
+        for v in step.values() {
+            let (mut sin, mut cos) = (v as f64 / numbers.len() as f64 * 2.0 * PI).sin_cos();
+            sin *= l;
+            cos *= l;
+
+            let d = numbers[v] as f64 / numbers.len() as f64;
+
+            let translation = iced::Vector::new((sin * d) as f32, (-cos * d) as f32);
+
+            frame.translate(translation.clone());
+            frame.fill_rectangle(
+                iced::Point::ORIGIN,
+                RECT_SIZE,
+                if step.is_comparison() { GREEN } else { RED },
+            );
+            frame.translate(translation * -1.0);
+        }
+
+        vec![frame.into_geometry()]
     }
 }
 
 #[derive(Default)]
 pub struct Controls {
-    algorithms: pick_list::State<sort::Sort>,
+    algorithms: pick_list::State<sorting::Sort>,
     play: button::State,
     step: button::State,
     speed: slider::State,
@@ -212,7 +226,7 @@ pub struct Controls {
 impl Controls {
     pub fn view(
         &mut self,
-        sort: sort::Sort,
+        sort: sorting::Sort,
         playing: bool,
         speed: u32,
         max_speed: u32,
@@ -243,7 +257,7 @@ impl Controls {
                     .spacing(PADDING)
                     .push(iced::PickList::new(
                         &mut self.algorithms,
-                        Vec::from_iter(sort::Sort::iter()),
+                        Vec::from_iter(sorting::Sort::iter()),
                         Some(sort),
                         Message::SortSelected,
                     ))

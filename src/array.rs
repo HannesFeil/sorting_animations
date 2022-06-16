@@ -48,6 +48,8 @@ pub struct ArrayState {
     numbers: Vec<usize>,
     view: gui::View,
     step: Step,
+    comparisons: u64,
+    accesses: u64,
 }
 
 impl ArrayState {
@@ -56,6 +58,8 @@ impl ArrayState {
             numbers: (1..=size).collect(),
             view,
             step: Step::None,
+            comparisons: 0,
+            accesses: 0,
         }
     }
 
@@ -96,27 +100,47 @@ impl ArrayState {
         self.step = Step::None;
     }
 
+    pub fn comparisons(&self) -> u64 {
+        self.comparisons
+    }
+
+    pub fn accesses(&self) -> u64 {
+        self.accesses
+    }
+
+    pub fn reset_stats(&mut self) {
+        self.comparisons = 0;
+        self.accesses = 0;
+    }
+
     pub fn cmp_two(&mut self, a: usize, b: usize) -> cmp::Ordering {
         self.step = Step::ComparisonTwo(a, b);
+        self.comparisons += 1;
+        self.accesses += 2;
         self.numbers[a].cmp(&self.numbers[b])
     }
 
     pub fn cmp(&mut self, index: usize, value: usize) -> cmp::Ordering {
+        self.comparisons += 1;
+        self.accesses += 1;
         self.step = Step::Comparison(index);
         self.numbers[index].cmp(&value)
     }
 
     pub fn swap(&mut self, a: usize, b: usize) {
+        self.accesses += 4;
         self.step = Step::AccessTwo(a, b);
         self.numbers.swap(a, b);
     }
 
     pub fn get(&mut self, index: usize) -> usize {
+        self.accesses += 1;
         self.step = Step::Access(index);
         self.numbers[index]
     }
 
     pub fn set(&mut self, index: usize, value: usize) {
+        self.accesses += 1;
         self.step = Step::Access(index);
         self.numbers[index] = value;
     }
