@@ -1,10 +1,9 @@
 use crate::sorting::wrapping;
 use std::cmp;
-use strum::EnumIter;
 
 type SortResult = Result<(), ()>;
 
-#[derive(Clone, Debug, PartialEq, Eq, EnumIter)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Sort {
     BubbleSort,
     ShakerSort,
@@ -25,6 +24,34 @@ pub enum Sort {
     CountingSort,
     RadixSort10,
     RadixSort2,
+}
+
+impl Sort {
+    const VALUES: [Sort; 19] = [
+        Sort::BubbleSort,
+        Sort::ShakerSort,
+        Sort::ExchangeSort,
+        Sort::CycleSort,
+        Sort::CombSort,
+        Sort::OddEvenSort,
+        Sort::InsertionSort,
+        Sort::ShellSort,
+        Sort::SelectionSort,
+        Sort::DoubleSelectionSort,
+        Sort::StrandSort,
+        Sort::StoogeSort,
+        Sort::SlowSort,
+        Sort::QuickSort,
+        Sort::MergeSort,
+        Sort::HeapSort,
+        Sort::CountingSort,
+        Sort::RadixSort10,
+        Sort::RadixSort2,
+    ];
+
+    pub fn values() -> &'static [Sort] {
+        Sort::VALUES.as_slice()
+    }
 }
 
 impl Default for Sort {

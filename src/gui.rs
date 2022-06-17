@@ -1,6 +1,5 @@
 use crate::{array, sorting, Message, PADDING};
 use iced::{button, canvas, pick_list, slider, text_input};
-use strum::IntoEnumIterator;
 
 const WHITE: iced::Color = iced::Color::WHITE;
 const BLACK: iced::Color = iced::Color::BLACK;
@@ -17,11 +16,19 @@ const GREEN: iced::Color = iced::Color {
     a: 1f32,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, strum::EnumIter)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum View {
     Default,
     Colors,
     Circle,
+}
+
+impl View {
+    const VALUES: [View; 3] = [View::Default, View::Colors, View::Circle];
+
+    pub fn values() -> &'static [View] {
+        View::VALUES.as_slice()
+    }
 }
 
 impl Default for View {
@@ -240,7 +247,6 @@ impl Controls {
         .on_press(Message::Play);
 
         let mut shuffle_button = iced::Button::new(&mut self.shuffle, iced::Text::new("Shuffle"));
-
         let mut step_button = iced::Button::new(&mut self.step, iced::Text::new("Step"));
 
         if !playing {
@@ -257,7 +263,7 @@ impl Controls {
                     .spacing(PADDING)
                     .push(iced::PickList::new(
                         &mut self.algorithms,
-                        Vec::from_iter(sorting::Sort::iter()),
+                        sorting::Sort::values(),
                         Some(sort),
                         Message::SortSelected,
                     ))
@@ -301,7 +307,7 @@ impl Controls {
                     .push(iced::Text::new("View:"))
                     .push(iced::PickList::new(
                         &mut self.view,
-                        Vec::from_iter(View::iter()),
+                        View::values(),
                         Some(view),
                         Message::ViewSelected,
                     )),

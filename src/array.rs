@@ -69,7 +69,7 @@ impl ArrayState {
     }
 
     pub fn get_view(&self) -> gui::View {
-        self.view.clone()
+        self.view
     }
 
     pub fn set_view(&mut self, view: gui::View) {
