@@ -67,7 +67,7 @@ impl std::fmt::Display for Sort {
 }
 
 impl Sort {
-    pub fn sort(&self, mut lock: wrapping::ArrayLock, size: usize) -> Result<(), ()> {
+    pub fn sort(&self, mut lock: wrapping::ArrayLock, size: usize) -> SortResult {
         match self {
             Sort::BubbleSort => Sort::bubble_sort(&mut lock, size),
             Sort::ShakerSort => Sort::shaker_sort(&mut lock, size),
