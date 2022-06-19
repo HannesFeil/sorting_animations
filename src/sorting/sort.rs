@@ -3,54 +3,55 @@ use std::cmp;
 
 type SortResult = Result<(), ()>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Sort {
-    BubbleSort,
-    ShakerSort,
-    ExchangeSort,
-    CycleSort,
-    CombSort,
-    OddEvenSort,
-    InsertionSort,
-    ShellSort,
-    SelectionSort,
-    DoubleSelectionSort,
-    StrandSort,
-    StoogeSort,
-    SlowSort,
-    QuickSort,
-    MergeSort,
-    HeapSort,
-    CountingSort,
-    RadixSort10,
-    RadixSort2,
+macro_rules! declare_sorts {
+    (|$lock:ident, $size:ident| {
+        $($sort:ident: $func:expr => O($speed:expr))+
+    }) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum Sort {
+            $($sort),+
+        }
+
+        impl Sort {
+            pub const VALUES: &'static[Sort] = &[$(Sort::$sort),+];
+
+            pub fn sort(&self, mut $lock: wrapping::ArrayLock, $size: usize) -> SortResult {
+                let $lock = &mut $lock;
+                match self {
+                    $(Sort::$sort => {$func}),+
+                }
+            }
+
+            pub fn calculate_max_ticks(&self, $size: u64) -> u64 {
+                match self {
+                    $(Sort::$sort => {$speed}),+
+                }
+            }
+        }
+    };
 }
 
-impl Sort {
-    const VALUES: [Sort; 19] = [
-        Sort::BubbleSort,
-        Sort::ShakerSort,
-        Sort::ExchangeSort,
-        Sort::CycleSort,
-        Sort::CombSort,
-        Sort::OddEvenSort,
-        Sort::InsertionSort,
-        Sort::ShellSort,
-        Sort::SelectionSort,
-        Sort::DoubleSelectionSort,
-        Sort::StrandSort,
-        Sort::StoogeSort,
-        Sort::SlowSort,
-        Sort::QuickSort,
-        Sort::MergeSort,
-        Sort::HeapSort,
-        Sort::CountingSort,
-        Sort::RadixSort10,
-        Sort::RadixSort2,
-    ];
-
-    pub fn values() -> &'static [Sort] {
-        Sort::VALUES.as_slice()
+declare_sorts! {
+    |lock, size| {
+        BubbleSort: Sort::bubble_sort(lock, size) => O(size.pow(2) / 100)
+        ShakerSort: Sort::shaker_sort(lock, size) => O(size.pow(2) / 100)
+        ExchangeSort: Sort::exchange_sort(lock, size) => O(size.pow(2) / 100)
+        CycleSort: Sort::cycle_sort(lock, size) => O(size.pow(2) / 100)
+        CombSort: Sort::comb_sort(lock, size) => O(size.pow(2) / 10000)
+        OddEvenSort: Sort::odd_even_sort(lock, size) => O(size.pow(2) / 100)
+        InsertionSort: Sort::insertion_sort(lock, size) => O(size.pow(2) / 100)
+        ShellSort: Sort::shell_sort(lock, size) => O(size.pow(2) / 10000)
+        SelectionSort: Sort::selection_sort(lock, size) => O(size.pow(2) / 100)
+        DoubleSelectionSort: Sort::double_selection_sort(lock, size) => O(size.pow(2) / 100)
+        StrandSort: Sort::strand_sort(lock, size) => O(size.pow(2) / 1000)
+        StoogeSort: Sort::stooge_sort(lock, 0, size - 1) => O(size.pow(3) / 1000)
+        SlowSort: Sort::slow_sort(lock, 0, size - 1) => O(size.pow(3) / 1000)
+        QuickSort: Sort::quick_sort(lock, 0, size - 1, &mut rand::thread_rng()) => O(size * size.log2() as u64 / 100)
+        MergeSort: Sort::merge_sort(lock, 0, size - 1) => O(size * size.log2() as u64 / 100)
+        HeapSort: Sort::heap_sort(lock, size - 1) => O(size * size.log2() as u64 / 100)
+        CountingSort: Sort::counting_sort(lock, size, size, |x| x) => O(size / 50)
+        RadixSort10: Sort::radix_sort(lock, size, 10) => O(size / 50)
+        RadixSort2: Sort::radix_sort(lock, size, 2) => O(size / 50)
     }
 }
 
@@ -67,30 +68,6 @@ impl std::fmt::Display for Sort {
 }
 
 impl Sort {
-    pub fn sort(&self, mut lock: wrapping::ArrayLock, size: usize) -> SortResult {
-        match self {
-            Sort::BubbleSort => Sort::bubble_sort(&mut lock, size),
-            Sort::ShakerSort => Sort::shaker_sort(&mut lock, size),
-            Sort::ExchangeSort => Sort::exchange_sort(&mut lock, size),
-            Sort::CycleSort => Sort::cycle_sort(&mut lock, size),
-            Sort::CombSort => Sort::comb_sort(&mut lock, size),
-            Sort::OddEvenSort => Sort::odd_even_sort(&mut lock, size),
-            Sort::InsertionSort => Sort::insertion_sort(&mut lock, size),
-            Sort::ShellSort => Sort::shell_sort(&mut lock, size),
-            Sort::SelectionSort => Sort::selection_sort(&mut lock, size),
-            Sort::DoubleSelectionSort => Sort::double_selection_sort(&mut lock, size),
-            Sort::StrandSort => Sort::strand_sort(&mut lock, size),
-            Sort::StoogeSort => Sort::stooge_sort(&mut lock, 0, size - 1),
-            Sort::SlowSort => Sort::slow_sort(&mut lock, 0, size - 1),
-            Sort::QuickSort => Sort::quick_sort(&mut lock, 0, size - 1, &mut rand::thread_rng()),
-            Sort::MergeSort => Sort::merge_sort(&mut lock, 0, size - 1),
-            Sort::HeapSort => Sort::heap_sort(&mut lock, size - 1),
-            Sort::CountingSort => Sort::counting_sort(&mut lock, size, size, |x| x),
-            Sort::RadixSort10 => Sort::radix_sort(&mut lock, size, 10),
-            Sort::RadixSort2 => Sort::radix_sort(&mut lock, size, 2),
-        }
-    }
-
     fn bubble_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
         for i in 1..size {
             for j in 0..size - i {
@@ -500,26 +477,5 @@ impl Sort {
         }
 
         Ok(())
-    }
-
-    pub fn calculate_max_ticks(&self, numbers: u64) -> u64 {
-        match self {
-            Sort::BubbleSort
-            | Sort::ShakerSort
-            | Sort::ExchangeSort
-            | Sort::CycleSort
-            | Sort::OddEvenSort
-            | Sort::InsertionSort
-            | Sort::SelectionSort
-            | Sort::DoubleSelectionSort => (numbers / 15).pow(2),
-            Sort::StrandSort => (numbers / 40 + 1).pow(2),
-            Sort::CombSort | Sort::ShellSort => (numbers / 100 + 1).pow(2),
-            Sort::StoogeSort => (numbers / 15 + 1).pow(3),
-            Sort::SlowSort => numbers.pow(numbers.log2() / 3),
-            Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => {
-                (numbers / 70 + 2) * (numbers / 70 + 2).log2() as u64
-            }
-            Sort::CountingSort | Sort::RadixSort10 | Sort::RadixSort2 => numbers / 50,
-        }
     }
 }

@@ -263,7 +263,7 @@ impl Controls {
                     .spacing(PADDING)
                     .push(iced::PickList::new(
                         &mut self.algorithms,
-                        sorting::Sort::values(),
+                        sorting::Sort::VALUES,
                         Some(sort),
                         Message::SortSelected,
                     ))

@@ -29,7 +29,7 @@ impl Sorter {
 
         let (sender, receiver) = sync::mpsc::channel();
         let array_lock = ArrayLock::new(self.array_state.clone(), receiver);
-        let sort = self.sort.clone();
+        let sort = self.sort;
         let size = self.operate_array(|array| array.size());
 
         self.handle = Some((thread::spawn(move || sort.sort(array_lock, size)), sender));
@@ -51,7 +51,7 @@ impl Sorter {
     }
 
     pub fn sort(&self) -> sort::Sort {
-        self.sort.clone()
+        self.sort
     }
 
     pub fn operate_array<T>(&self, f: impl FnOnce(&mut array::ArrayState) -> T) -> T {
