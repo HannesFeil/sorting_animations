@@ -55,27 +55,6 @@ declare_sorts! {
     }
 }
 
-// pub fn calculate_max_ticks(&self, numbers: u64) -> u64 {
-//     match self {
-//         Sort::BubbleSort
-//         | Sort::ShakerSort
-//         | Sort::ExchangeSort
-//         | Sort::CycleSort
-//         | Sort::OddEvenSort
-//         | Sort::InsertionSort
-//         | Sort::SelectionSort
-//         | Sort::DoubleSelectionSort => (numbers / 15).pow(2),
-//         Sort::StrandSort => (numbers / 40 + 1).pow(2),
-//         Sort::CombSort | Sort::ShellSort => (numbers / 100 + 1).pow(2),
-//         Sort::StoogeSort => (numbers / 15 + 1).pow(3),
-//         Sort::SlowSort => numbers.pow(numbers.log2() / 3),
-//         Sort::QuickSort | Sort::MergeSort | Sort::HeapSort => {
-//             (numbers / 70 + 2) * (numbers / 70 + 2).log2() as u64
-//         }
-//         Sort::CountingSort | Sort::RadixSort10 | Sort::RadixSort2 => numbers / 50,
-//     }
-// }
-
 impl Default for Sort {
     fn default() -> Self {
         Sort::BubbleSort
