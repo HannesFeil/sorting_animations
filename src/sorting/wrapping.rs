@@ -6,13 +6,15 @@ use crate::{array, gui};
 pub type ArrayResult<T> = Result<T, ()>;
 type SyncArray = sync::Arc<sync::Mutex<array::ArrayState>>;
 
+struct SenderHandle {
+    thread: thread::JoinHandle<ArrayResult<()>>,
+    sender: sync::mpsc::Sender<Message>,
+}
+
 pub struct Sorter {
     sort: sort::Sort,
     array_state: SyncArray,
-    handle: Option<(
-        thread::JoinHandle<ArrayResult<()>>,
-        sync::mpsc::Sender<Message>,
-    )>,
+    handle: Option<SenderHandle>,
 }
 
 impl Sorter {
@@ -32,15 +34,18 @@ impl Sorter {
         let sort = self.sort;
         let size = self.operate_array(|array| array.size());
 
-        self.handle = Some((thread::spawn(move || sort.sort(array_lock, size)), sender));
+        self.handle = Some(SenderHandle {
+            thread: thread::spawn(move || sort.sort(array_lock, size)),
+            sender,
+        });
     }
 
     pub fn kill_sort(&mut self) {
         if self.alive() {
-            let (handle, sender) = std::mem::replace(&mut self.handle, None).unwrap();
+            let handle = std::mem::replace(&mut self.handle, None).unwrap();
 
-            sender.send(Message::Kill).unwrap();
-            handle.join().unwrap().unwrap_or_default();
+            handle.sender.send(Message::Kill).unwrap();
+            handle.thread.join().unwrap().unwrap_or_default();
         }
     }
 
@@ -59,8 +64,8 @@ impl Sorter {
     }
 
     pub fn alive(&mut self) -> bool {
-        if let Some((ref handle, _)) = self.handle {
-            if handle.is_finished() {
+        if let Some(ref handle) = self.handle {
+            if handle.thread.is_finished() {
                 self.handle = None;
             }
         }
@@ -68,31 +73,33 @@ impl Sorter {
         self.handle.is_some()
     }
 
-    pub fn tick(&mut self, speed: f32) {
-        assert!(self.alive(), "Sort is not alive, cannot tick");
+    fn check_alive(&mut self, msg: &str) -> &SenderHandle {
+        assert!(self.alive(), "Sort is not running: {}", msg);
 
-        self.handle
-            .as_ref()
-            .unwrap()
-            .1
+        self.handle.as_ref().unwrap()
+    }
+
+    pub fn tick(&mut self, speed: f32) {
+        let speed = (speed * self.sort.calculate_max_ticks(self.array_size()) as f32) as u64;
+
+        self.check_alive("Sorting Tick")
+            .sender
             .send(Message::Tick(cmp::min(
-                cmp::max(
-                    1,
-                    (speed
-                        * self
-                            .sort
-                            .calculate_max_ticks(self.operate_array(|array| array.size()) as u64)
-                            as f32) as u64,
-                ),
                 crate::MAX_STEPS,
+                cmp::max(1, speed),
             )))
             .unwrap();
     }
 
-    pub fn step(&mut self) {
-        assert!(self.alive(), "Sort is not alive, cannot step");
+    fn array_size(&self) -> u64 {
+        self.operate_array(|array| array.size()) as u64
+    }
 
-        self.handle.as_ref().unwrap().1.send(Message::Step).unwrap();
+    pub fn step(&mut self) {
+        self.check_alive("Sorting Step")
+            .sender
+            .send(Message::Step)
+            .unwrap();
     }
 
     pub fn comparisons(&self) -> u64 {

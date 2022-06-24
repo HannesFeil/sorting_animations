@@ -33,25 +33,44 @@ macro_rules! declare_sorts {
 
 declare_sorts! {
     |lock, size| {
-        BubbleSort: Sort::bubble_sort(lock, size) => O(size.pow(2) / 100)
-        ShakerSort: Sort::shaker_sort(lock, size) => O(size.pow(2) / 100)
-        ExchangeSort: Sort::exchange_sort(lock, size) => O(size.pow(2) / 100)
-        CycleSort: Sort::cycle_sort(lock, size) => O(size.pow(2) / 100)
-        CombSort: Sort::comb_sort(lock, size) => O(size.pow(2) / 10000)
-        OddEvenSort: Sort::odd_even_sort(lock, size) => O(size.pow(2) / 100)
-        InsertionSort: Sort::insertion_sort(lock, size) => O(size.pow(2) / 100)
-        ShellSort: Sort::shell_sort(lock, size) => O(size.pow(2) / 10000)
-        SelectionSort: Sort::selection_sort(lock, size) => O(size.pow(2) / 100)
-        DoubleSelectionSort: Sort::double_selection_sort(lock, size) => O(size.pow(2) / 100)
-        StrandSort: Sort::strand_sort(lock, size) => O(size.pow(2) / 1000)
-        StoogeSort: Sort::stooge_sort(lock, 0, size - 1) => O(size.pow(3) / 1000)
-        SlowSort: Sort::slow_sort(lock, 0, size - 1) => O(size.pow(3) / 1000)
-        QuickSort: Sort::quick_sort(lock, 0, size - 1, &mut rand::thread_rng()) => O(size * size.log2() as u64 / 100)
-        MergeSort: Sort::merge_sort(lock, 0, size - 1) => O(size * size.log2() as u64 / 100)
-        HeapSort: Sort::heap_sort(lock, size - 1) => O(size * size.log2() as u64 / 100)
-        CountingSort: Sort::counting_sort(lock, size, size, |x| x) => O(size / 50)
-        RadixSort10: Sort::radix_sort(lock, size, 10) => O(size / 50)
-        RadixSort2: Sort::radix_sort(lock, size, 2) => O(size / 50)
+        BubbleSort:
+            Sort::bubble_sort(lock, size) => O(size.pow(2) / 100)
+        ShakerSort:
+            Sort::shaker_sort(lock, size) => O(size.pow(2) / 100)
+        ExchangeSort:
+            Sort::exchange_sort(lock, size) => O(size.pow(2) / 100)
+        CycleSort:
+            Sort::cycle_sort(lock, size) => O(size.pow(2) / 100)
+        CombSort:
+            Sort::comb_sort(lock, size) => O(size.pow(2) / 10000)
+        OddEvenSort:
+            Sort::odd_even_sort(lock, size) => O(size.pow(2) / 100)
+        InsertionSort:
+            Sort::insertion_sort(lock, size) => O(size.pow(2) / 100)
+        ShellSort:
+            Sort::shell_sort(lock, size) => O(size.pow(2) / 10000)
+        SelectionSort:
+            Sort::selection_sort(lock, size) => O(size.pow(2) / 100)
+        DoubleSelectionSort:
+            Sort::double_selection_sort(lock, size) => O(size.pow(2) / 100)
+        StrandSort:
+            Sort::strand_sort(lock, size) => O(size.pow(2) / 1000)
+        StoogeSort:
+            Sort::stooge_sort(lock, 0, size - 1) => O(size.pow(3) / 1000)
+        SlowSort:
+            Sort::slow_sort(lock, 0, size - 1)  => O(size.pow(3) / 1000)
+        QuickSort:
+            Sort::quick_sort(lock, 0, size - 1, &mut rand::thread_rng()) => O(size * size.log2() as u64 / 100)
+        MergeSort:
+            Sort::merge_sort(lock, 0, size - 1) => O(size * size.log2() as u64 / 100)
+        HeapSort:
+            Sort::heap_sort(lock, size - 1) => O(size * size.log2() as u64 / 100)
+        CountingSort:
+            Sort::counting_sort(lock, size, size, |x| x) => O(size / 50)
+        RadixSort10:
+            Sort::radix_sort(lock, size, 10) => O(size / 50)
+        RadixSort2:
+            Sort::radix_sort(lock, size, 2) => O(size / 50)
     }
 }
 
