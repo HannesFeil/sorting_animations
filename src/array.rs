@@ -90,6 +90,11 @@ impl ArrayState {
         self.step = Step::None;
     }
 
+    pub fn reverse(&mut self) {
+        self.numbers.reverse();
+        self.step = Step::None;
+    }
+
     pub fn size(&self) -> usize {
         self.numbers.len()
     }

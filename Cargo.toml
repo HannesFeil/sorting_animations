@@ -7,3 +7,4 @@ edition = "2021"
 iced = { version = "0.4.2", features = ["canvas", "smol", "palette"] }
 palette = "0.6.0"
 rand = "0.8.5"
+rodio = "0.15.0"

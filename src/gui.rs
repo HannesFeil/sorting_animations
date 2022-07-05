@@ -227,6 +227,7 @@ pub struct Controls {
     speed: slider::State,
     numbers: text_input::State,
     shuffle: button::State,
+    reverse: button::State,
     view: pick_list::State<View>,
 }
 
@@ -247,10 +248,12 @@ impl Controls {
         .on_press(Message::Play);
 
         let mut shuffle_button = iced::Button::new(&mut self.shuffle, iced::Text::new("Shuffle"));
+        let mut reverse_button = iced::Button::new(&mut self.reverse, iced::Text::new("Reverse"));
         let mut step_button = iced::Button::new(&mut self.step, iced::Text::new("Step"));
 
         if !playing {
             shuffle_button = shuffle_button.on_press(Message::Shuffle);
+            reverse_button = reverse_button.on_press(Message::Reverse);
             step_button = step_button.on_press(Message::Step);
         }
 
@@ -269,6 +272,7 @@ impl Controls {
                     ))
                     .push(play_button)
                     .push(shuffle_button)
+                    .push(reverse_button)
                     .push(step_button),
             )
             .push(

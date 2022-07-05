@@ -89,10 +89,16 @@ impl std::fmt::Display for Sort {
 impl Sort {
     fn bubble_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
         for i in 1..size {
+            let mut abort = true;
             for j in 0..size - i {
                 if lock.cmp_two(j, j + 1)?.is_gt() {
                     lock.swap(j, j + 1)?;
+                    abort = false;
                 }
+            }
+
+            if abort {
+                break;
             }
         }
 
@@ -100,17 +106,29 @@ impl Sort {
     }
 
     fn shaker_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
-        for i in 1..size / 2 {
+        for i in 1..size / 2 + 1 {
+            let mut abort = true;
             for j in i - 1..size - i {
                 if lock.cmp_two(j, j + 1)?.is_gt() {
                     lock.swap(j, j + 1)?;
+                    abort = false;
                 }
             }
 
+            if abort {
+                break;
+            }
+
+            abort = true;
             for j in (i..size - i).rev() {
                 if lock.cmp_two(j, j - 1)?.is_lt() {
                     lock.swap(j, j - 1)?;
+                    abort = false;
                 }
+            }
+
+            if abort {
+                break;
             }
         }
 

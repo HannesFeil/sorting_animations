@@ -21,13 +21,6 @@ pub trait EnumListable<E, const N: usize> {
 pub fn main() -> iced::Result {
     use iced::Application;
 
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |panic_info| {
-        if !panic_info.to_string().contains("Canceled sort:") {
-            hook(panic_info);
-        }
-    }));
-
     SortingAnimations::run(iced::Settings {
         antialiasing: true,
         window: iced::window::Settings {
@@ -44,6 +37,7 @@ pub fn main() -> iced::Result {
 pub enum Message {
     Play,
     Shuffle,
+    Reverse,
     Step,
     Tick,
 
@@ -103,6 +97,11 @@ impl iced::Application for SortingAnimations {
                 self.initialize_sort(self.sorter.sort());
 
                 self.sorter.operate_array(|array| array.shuffle());
+            }
+            Message::Reverse => {
+                self.initialize_sort(self.sorter.sort());
+
+                self.sorter.operate_array(|array| array.reverse());
             }
             Message::Step => {
                 if self.reset_stats {
