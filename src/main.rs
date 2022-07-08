@@ -8,7 +8,7 @@ const INITIAL_NUMBERS: usize = 100;
 const MIN_NUMBERS: usize = 10;
 const DELAY_TIME: time::Duration = time::Duration::from_millis(10);
 const MAX_SPEED: u32 = 100;
-const MAX_STEPS: u64 = 5000;
+const TIME_OUT_CHECK: u64 = 10000;
 
 mod array;
 mod gui;
@@ -39,7 +39,7 @@ pub enum Message {
     Shuffle,
     Reverse,
     Step,
-    Tick,
+    Tick(time::Instant),
 
     SortSelected(sorting::Sort),
     ViewSelected(gui::View),
@@ -55,6 +55,7 @@ struct SortingAnimations {
     speed: u32,
     changed_numbers: Option<usize>,
     reset_stats: bool,
+    last_tick: time::Instant,
 }
 
 impl iced::Application for SortingAnimations {
@@ -73,6 +74,7 @@ impl iced::Application for SortingAnimations {
             speed: 1,
             changed_numbers: Some(INITIAL_NUMBERS),
             reset_stats: false,
+            last_tick: time::Instant::now(),
         };
         animations.initialize_sort(sorting::Sort::default());
 
@@ -111,7 +113,12 @@ impl iced::Application for SortingAnimations {
 
                 self.sorter.step();
             }
-            Message::Tick => {
+            Message::Tick(instant) => {
+                // println!(
+                //     "elapsed: {}",
+                //     instant.duration_since(self.last_tick).as_millis()
+                // );
+                self.last_tick = instant;
                 if !self.sorter.alive() {
                     self.playing = false;
                     self.initialize_sort(self.sorter.sort());
@@ -156,7 +163,7 @@ impl iced::Application for SortingAnimations {
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        iced::time::every(DELAY_TIME).map(|_| Message::Tick)
+        iced::time::every(DELAY_TIME).map(Message::Tick)
     }
 
     fn view(&mut self) -> iced::Element<Self::Message> {

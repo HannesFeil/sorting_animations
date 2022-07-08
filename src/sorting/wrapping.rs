@@ -1,4 +1,4 @@
-use std::{cmp, sync, thread};
+use std::{cmp, sync, thread, time};
 
 use super::sort;
 use crate::{array, gui};
@@ -84,10 +84,7 @@ impl Sorter {
 
         self.check_alive("Sorting Tick")
             .sender
-            .send(Message::Tick(cmp::min(
-                crate::MAX_STEPS,
-                cmp::max(1, speed),
-            )))
+            .send(Message::Tick(cmp::max(1, speed), time::Instant::now()))
             .unwrap();
     }
 
@@ -127,13 +124,14 @@ impl Sorter {
 enum Message {
     Kill,
     Step,
-    Tick(u64),
+    Tick(u64, time::Instant),
 }
 
 pub struct ArrayLock {
     array_state: sync::Arc<sync::Mutex<array::ArrayState>>,
     receiver: sync::mpsc::Receiver<Message>,
     counter: u64,
+    instant: time::Instant,
 }
 
 impl ArrayLock {
@@ -142,6 +140,7 @@ impl ArrayLock {
             array_state,
             receiver,
             counter: 0,
+            instant: time::Instant::now(),
         }
     }
 
@@ -149,11 +148,16 @@ impl ArrayLock {
     where
         F: FnOnce(&mut array::ArrayState) -> T,
     {
-        if self.counter == 0 {
+        if self.counter == 0
+            || self.counter % crate::TIME_OUT_CHECK == 0 && self.instant.elapsed().as_millis() > 10
+        {
             match self.receiver.recv().unwrap_or(Message::Kill) {
                 Message::Kill => return Err(()),
                 Message::Step => self.counter = 1,
-                Message::Tick(count) => self.counter = count,
+                Message::Tick(count, instant) => {
+                    self.counter = count;
+                    self.instant = instant;
+                }
             }
         }
 
