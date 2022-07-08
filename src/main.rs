@@ -39,6 +39,7 @@ pub enum Message {
     Shuffle,
     Reverse,
     Step,
+    Mute(bool),
     Tick(time::Instant),
 
     SortSelected(sorting::Sort),
@@ -55,7 +56,9 @@ struct SortingAnimations {
     speed: u32,
     changed_numbers: Option<usize>,
     reset_stats: bool,
-    last_tick: time::Instant,
+    muted: bool,
+    sink: rodio::Sink,
+    _stream: rodio::OutputStream,
 }
 
 impl iced::Application for SortingAnimations {
@@ -64,6 +67,12 @@ impl iced::Application for SortingAnimations {
     type Flags = ();
 
     fn new(_: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+        let sink = rodio::Sink::try_new(&handle).unwrap();
+        sink.set_volume(0.1);
+        sink.append(rodio::source::SineWave::new(440.0));
+        sink.pause();
+
         let mut animations = SortingAnimations {
             controls: gui::Controls::default(),
             sorter: sorting::Sorter::new(array::ArrayState::new(
@@ -74,7 +83,9 @@ impl iced::Application for SortingAnimations {
             speed: 1,
             changed_numbers: Some(INITIAL_NUMBERS),
             reset_stats: false,
-            last_tick: time::Instant::now(),
+            muted: true,
+            sink,
+            _stream,
         };
         animations.initialize_sort(sorting::Sort::default());
 
@@ -94,16 +105,19 @@ impl iced::Application for SortingAnimations {
                 }
 
                 self.playing = !self.playing;
+                if !self.playing {
+                    self.sink.pause();
+                }
             }
             Message::Shuffle => {
                 self.initialize_sort(self.sorter.sort());
 
-                self.sorter.operate_array(|array| array.shuffle());
+                self.sorter.shuffle();
             }
             Message::Reverse => {
                 self.initialize_sort(self.sorter.sort());
 
-                self.sorter.operate_array(|array| array.reverse());
+                self.sorter.reverse();
             }
             Message::Step => {
                 if self.reset_stats {
@@ -113,16 +127,24 @@ impl iced::Application for SortingAnimations {
 
                 self.sorter.step();
             }
-            Message::Tick(instant) => {
-                // println!(
-                //     "elapsed: {}",
-                //     instant.duration_since(self.last_tick).as_millis()
-                // );
-                self.last_tick = instant;
+            Message::Tick(_instant) => {
+                self.sink.set_speed(match self.sorter.last_step() {
+                    array::Step::None => self.sink.speed(),
+                    _ => {
+                        0.5 + (self.sorter.last_step().values().iter().sum::<usize>() as f32
+                            / self.sorter.last_step().values().len() as f32)
+                            / self.sorter.size() as f32
+                            / 2.0
+                    }
+                });
                 if !self.sorter.alive() {
                     self.playing = false;
                     self.initialize_sort(self.sorter.sort());
                 } else if self.playing {
+                    if self.sink.is_paused() && !self.muted {
+                        self.sink.play()
+                    }
+
                     self.sorter.tick(self.speed as f32 / MAX_SPEED as f32);
                 }
             }
@@ -152,10 +174,14 @@ impl iced::Application for SortingAnimations {
                     Some(std::cmp::max(MIN_NUMBERS, n))
                 });
 
-                self.sorter
-                    .operate_array(|array| array.initialize(self.changed_numbers.unwrap()));
-
+                self.sorter.initialize(self.changed_numbers.unwrap());
                 self.sorter.start_sort();
+            }
+            Message::Mute(muted) => {
+                self.muted = muted;
+                if self.muted {
+                    self.sink.pause();
+                }
             }
         }
 
@@ -182,9 +208,14 @@ impl iced::Application for SortingAnimations {
                     .push(iced::Text::new(format!(
                         "Accesses: {}",
                         self.sorter.accesses()
-                    ))),
+                    )))
+                    .push(iced::Space::new(iced::Length::Fill, iced::Length::Shrink))
+                    .push(
+                        iced::Toggler::new(self.muted, String::from("Mute "), Message::Mute)
+                            .width(iced::Length::Shrink),
+                    ),
             )
-            .push(self.sorter.operate_array(|array| array.view()))
+            .push(self.sorter.array_view())
             .push(
                 self.controls.view(
                     self.sorter.sort(),
@@ -193,7 +224,7 @@ impl iced::Application for SortingAnimations {
                     MAX_SPEED,
                     self.changed_numbers
                         .map_or(String::new(), |x| x.to_string()),
-                    self.sorter.view(),
+                    self.sorter.get_view(),
                 ),
             );
 
@@ -205,9 +236,10 @@ impl SortingAnimations {
     fn initialize_sort(&mut self, sort: sorting::Sort) {
         self.reset_stats = true;
         self.playing = false;
+        self.sink.pause();
 
         self.sorter.kill_sort();
-        self.sorter.operate_array(|a| a.clear_step());
+        self.sorter.clear_step();
         self.sorter.set_sort(sort);
         self.sorter.start_sort();
     }

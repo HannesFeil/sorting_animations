@@ -2,7 +2,7 @@ use crate::gui;
 use iced::canvas;
 use std::cmp;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Step {
     ComparisonTwo(usize, usize),
     Comparison(usize),
@@ -10,6 +10,8 @@ pub enum Step {
     Access(usize),
     None,
 }
+
+pub type ArrayView = iced::Element<'static, crate::Message>;
 
 impl Step {
     pub fn contains(&self, index: usize) -> bool {
@@ -76,7 +78,7 @@ impl ArrayState {
         self.view = view;
     }
 
-    pub fn view(&self) -> iced::Element<'static, crate::Message> {
+    pub fn array_view(&self) -> ArrayView {
         iced::Canvas::new(self.clone())
             .width(iced::Length::Fill)
             .height(iced::Length::Fill)
@@ -101,6 +103,9 @@ impl ArrayState {
 }
 
 impl ArrayState {
+    pub fn last_step(&self) -> Step {
+        self.step
+    }
     pub fn clear_step(&mut self) {
         self.step = Step::None;
     }

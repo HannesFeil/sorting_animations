@@ -59,10 +59,6 @@ impl Sorter {
         self.sort
     }
 
-    pub fn operate_array<T>(&self, f: impl FnOnce(&mut array::ArrayState) -> T) -> T {
-        f(&mut self.array_state.lock().unwrap())
-    }
-
     pub fn alive(&mut self) -> bool {
         if let Some(ref handle) = self.handle {
             if handle.thread.is_finished() {
@@ -80,16 +76,12 @@ impl Sorter {
     }
 
     pub fn tick(&mut self, speed: f32) {
-        let speed = (speed * self.sort.calculate_max_ticks(self.array_size()) as f32) as u64;
+        let speed = (speed * self.sort.calculate_max_ticks(self.size() as u64) as f32) as u64;
 
         self.check_alive("Sorting Tick")
             .sender
             .send(Message::Tick(cmp::max(1, speed), time::Instant::now()))
             .unwrap();
-    }
-
-    fn array_size(&self) -> u64 {
-        self.operate_array(|array| array.size()) as u64
     }
 
     pub fn step(&mut self) {
@@ -98,26 +90,33 @@ impl Sorter {
             .send(Message::Step)
             .unwrap();
     }
+}
 
-    pub fn comparisons(&self) -> u64 {
-        self.operate_array(|array| array.comparisons())
+macro_rules! wrap_sorter_array_op {
+    ($name:ident($($arg:ident: $typ:ty),*) -> $ret:ty) => {
+        pub fn $name(&self, $($arg: $typ),*) -> $ret {
+            self.operate_array(|array| array.$name($($arg),*))
+        }
+    };
+}
+
+impl Sorter {
+    pub fn operate_array<T>(&self, f: impl FnOnce(&mut array::ArrayState) -> T) -> T {
+        f(&mut self.array_state.lock().unwrap())
     }
 
-    pub fn accesses(&self) -> u64 {
-        self.operate_array(|array| array.accesses())
-    }
-
-    pub fn reset_stats(&self) {
-        self.operate_array(|array| array.reset_stats())
-    }
-
-    pub fn view(&self) -> gui::View {
-        self.operate_array(|array| array.get_view())
-    }
-
-    pub fn set_view(&self, view: gui::View) {
-        self.operate_array(|array| array.set_view(view));
-    }
+    wrap_sorter_array_op!(size() -> usize);
+    wrap_sorter_array_op!(clear_step() -> ());
+    wrap_sorter_array_op!(last_step() -> array::Step);
+    wrap_sorter_array_op!(shuffle() -> ());
+    wrap_sorter_array_op!(reverse() -> ());
+    wrap_sorter_array_op!(initialize(size: usize) -> ());
+    wrap_sorter_array_op!(array_view() -> array::ArrayView);
+    wrap_sorter_array_op!(comparisons() -> u64);
+    wrap_sorter_array_op!(accesses() -> u64);
+    wrap_sorter_array_op!(reset_stats() -> ());
+    wrap_sorter_array_op!(get_view() -> gui::View);
+    wrap_sorter_array_op!(set_view(view: gui::View) -> ());
 }
 
 #[derive(Copy, Clone)]
@@ -149,7 +148,8 @@ impl ArrayLock {
         F: FnOnce(&mut array::ArrayState) -> T,
     {
         if self.counter == 0
-            || self.counter % crate::TIME_OUT_CHECK == 0 && self.instant.elapsed().as_millis() > 10
+            || self.counter % crate::TIME_OUT_CHECK == 0
+                && self.instant.elapsed() > crate::DELAY_TIME
         {
             match self.receiver.recv().unwrap_or(Message::Kill) {
                 Message::Kill => return Err(()),
