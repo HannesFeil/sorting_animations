@@ -134,7 +134,6 @@ impl iced::Application for SortingAnimations {
                         0.5 + (self.sorter.last_step().values().iter().sum::<usize>() as f32
                             / self.sorter.last_step().values().len() as f32)
                             / self.sorter.size() as f32
-                            / 2.0
                     }
                 });
                 if !self.sorter.alive() {
@@ -174,6 +173,7 @@ impl iced::Application for SortingAnimations {
                     Some(std::cmp::max(MIN_NUMBERS, n))
                 });
 
+                self.sink.pause();
                 self.sorter.initialize(self.changed_numbers.unwrap());
                 self.sorter.start_sort();
             }
@@ -211,7 +211,7 @@ impl iced::Application for SortingAnimations {
                     )))
                     .push(iced::Space::new(iced::Length::Fill, iced::Length::Shrink))
                     .push(
-                        iced::Toggler::new(self.muted, String::from("Mute "), Message::Mute)
+                        iced::Toggler::new(self.muted, String::from("Mute  "), Message::Mute)
                             .width(iced::Length::Shrink),
                     ),
             )
