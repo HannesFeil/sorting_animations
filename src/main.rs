@@ -14,10 +14,6 @@ mod array;
 mod gui;
 mod sorting;
 
-pub trait EnumListable<E, const N: usize> {
-    fn list() -> [E; N];
-}
-
 pub fn main() -> iced::Result {
     use iced::Application;
 
