@@ -60,11 +60,11 @@ declare_sorts! {
         SlowSort:
             Sort::slow_sort(lock, 0, size - 1)  => O(size.pow(3) / 1000)
         QuickSort:
-            Sort::quick_sort(lock, 0, size - 1, &mut rand::thread_rng()) => O(size * size.log2() as u64 / 100)
+            Sort::quick_sort(lock, 0, size - 1, &mut rand::thread_rng()) => O(size * size.ilog2() as u64 / 100)
         MergeSort:
-            Sort::merge_sort(lock, 0, size - 1) => O(size * size.log2() as u64 / 100)
+            Sort::merge_sort(lock, 0, size - 1) => O(size * size.ilog2() as u64 / 100)
         HeapSort:
-            Sort::heap_sort(lock, size - 1) => O(size * size.log2() as u64 / 100)
+            Sort::heap_sort(lock, size - 1) => O(size * size.ilog2() as u64 / 100)
         CountingSort:
             Sort::counting_sort(lock, size, size, |x| x) => O(size / 50)
         RadixSort10:
