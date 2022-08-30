@@ -92,11 +92,11 @@ impl Sorter {
     }
 }
 
-macro_rules! wrap_sorter_array_op {
-    ($name:ident($($arg:ident: $typ:ty),*) -> $ret:ty) => {
-        pub fn $name(&self, $($arg: $typ),*) -> $ret {
+macro_rules! wrap_sorter_array_ops {
+    ($(fn $name:ident($($arg:ident: $typ:ty),*) -> $ret:ty;)+) => {
+        $(pub fn $name(&self, $($arg: $typ),*) -> $ret {
             self.operate_array(|array| array.$name($($arg),*))
-        }
+        })+
     };
 }
 
@@ -105,18 +105,20 @@ impl Sorter {
         f(&mut self.array_state.lock().unwrap())
     }
 
-    wrap_sorter_array_op!(size() -> usize);
-    wrap_sorter_array_op!(clear_step() -> ());
-    wrap_sorter_array_op!(last_step() -> array::Step);
-    wrap_sorter_array_op!(shuffle() -> ());
-    wrap_sorter_array_op!(reverse() -> ());
-    wrap_sorter_array_op!(initialize(size: usize) -> ());
-    wrap_sorter_array_op!(array_view() -> array::ArrayView);
-    wrap_sorter_array_op!(comparisons() -> u64);
-    wrap_sorter_array_op!(accesses() -> u64);
-    wrap_sorter_array_op!(reset_stats() -> ());
-    wrap_sorter_array_op!(get_view() -> gui::View);
-    wrap_sorter_array_op!(set_view(view: gui::View) -> ());
+    wrap_sorter_array_ops! {
+        fn size() -> usize;
+        fn clear_step() -> ();
+        fn last_step() -> array::Step;
+        fn shuffle() -> ();
+        fn reverse() -> ();
+        fn initialize(size: usize) -> ();
+        fn array_view() -> array::ArrayView;
+        fn comparisons() -> u64;
+        fn accesses() -> u64;
+        fn reset_stats() -> ();
+        fn get_view() -> gui::View;
+        fn set_view(view: gui::View) -> ();
+    }
 }
 
 #[derive(Copy, Clone)]
