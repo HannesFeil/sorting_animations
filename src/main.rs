@@ -1,5 +1,3 @@
-#![feature(int_log)]
-
 use std::time;
 
 const TITLE: &str = "Sorting Animations";
@@ -155,10 +153,8 @@ impl iced::Application for SortingAnimations {
             Message::NumbersInput(nums) => {
                 if nums.trim().is_empty() {
                     self.changed_numbers = None;
-                } else {
-                    if let Ok(number) = nums.trim().parse::<usize>() {
-                        self.changed_numbers = Some(number);
-                    }
+                } else if let Ok(number) = nums.trim().parse::<usize>() {
+                    self.changed_numbers = Some(number);
                 }
             }
             Message::NumbersSelected => {

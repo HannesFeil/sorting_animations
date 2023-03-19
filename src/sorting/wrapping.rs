@@ -1,7 +1,10 @@
 use std::{cmp, sync, thread, time};
 
 use super::sort;
-use crate::{array, gui};
+use crate::{
+    array::{self, ArrayState},
+    gui,
+};
 
 pub type ArrayResult<T> = Result<T, ()>;
 type SyncArray = sync::Arc<sync::Mutex<array::ArrayState>>;
@@ -30,12 +33,12 @@ impl Sorter {
         assert!(!self.alive(), "Sort already running");
 
         let (sender, receiver) = sync::mpsc::channel();
-        let array_lock = ArrayLock::new(self.array_state.clone(), receiver);
+        let array_state = self.array_state.clone();
         let sort = self.sort;
         let size = self.operate_array(|array| array.size());
 
         self.handle = Some(SenderHandle {
-            thread: thread::spawn(move || sort.sort(array_lock, size)),
+            thread: thread::spawn(move || sort.sort(ArrayLock::new(array_state, receiver), size)),
             sender,
         });
     }
@@ -70,7 +73,7 @@ impl Sorter {
     }
 
     fn check_alive(&mut self, msg: &str) -> &SenderHandle {
-        assert!(self.alive(), "Sort is not running: {}", msg);
+        assert!(self.alive(), "Sort is not running: {msg}");
 
         self.handle.as_ref().unwrap()
     }
@@ -129,6 +132,7 @@ enum Message {
 }
 
 pub struct ArrayLock {
+    array_lock: Option<sync::MutexGuard<'static, ArrayState>>,
     array_state: sync::Arc<sync::Mutex<array::ArrayState>>,
     receiver: sync::mpsc::Receiver<Message>,
     counter: u64,
@@ -139,6 +143,7 @@ impl ArrayLock {
     fn new(array_state: SyncArray, receiver: sync::mpsc::Receiver<Message>) -> ArrayLock {
         ArrayLock {
             array_state,
+            array_lock: None,
             receiver,
             counter: 0,
             instant: time::Instant::now(),
@@ -153,6 +158,8 @@ impl ArrayLock {
             || self.counter % crate::TIME_OUT_CHECK == 0
                 && self.instant.elapsed() > crate::DELAY_TIME
         {
+            self.array_lock = None;
+
             match self.receiver.recv().unwrap_or(Message::Kill) {
                 Message::Kill => return Err(()),
                 Message::Step => self.counter = 1,
@@ -161,12 +168,14 @@ impl ArrayLock {
                     self.instant = instant;
                 }
             }
+
+            self.array_lock =
+                unsafe { std::mem::transmute(Some(self.array_state.lock().unwrap())) };
         }
 
-        let mut array = self.array_state.lock().unwrap();
         self.counter -= 1;
 
-        Ok(step(&mut array))
+        Ok(step(&mut *self.array_lock.as_deref_mut().unwrap()))
     }
 }
 
