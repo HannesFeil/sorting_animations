@@ -16,8 +16,9 @@ const GREEN: iced::Color = iced::Color {
     a: 1f32,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum View {
+    #[default]
     Default,
     Colors,
     Circle,
@@ -31,15 +32,9 @@ impl View {
     }
 }
 
-impl Default for View {
-    fn default() -> Self {
-        View::Default
-    }
-}
-
 impl std::fmt::Display for View {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -144,7 +139,7 @@ impl View {
 
         let l = 0.4
             * std::cmp::min_by(bounds.width, bounds.height, |a, b| {
-                a.partial_cmp(&b).unwrap()
+                a.partial_cmp(b).unwrap()
             }) as f64;
 
         for i in 0..CIRCLE_ACC {
@@ -191,7 +186,7 @@ impl View {
                     WHITE
                 };
 
-                frame.translate(translation.clone());
+                frame.translate(translation);
                 frame.fill_rectangle(iced::Point::ORIGIN, RECT_SIZE, color);
                 frame.translate(translation * -1.0);
             }
@@ -206,7 +201,7 @@ impl View {
 
             let translation = iced::Vector::new((sin * d) as f32, (-cos * d) as f32);
 
-            frame.translate(translation.clone());
+            frame.translate(translation);
             frame.fill_rectangle(
                 iced::Point::ORIGIN,
                 RECT_SIZE,
@@ -278,7 +273,7 @@ impl Controls {
             .push(
                 iced::Row::new()
                     .spacing(PADDING)
-                    .push(iced::Text::new(format!("Speed: {}", speed)))
+                    .push(iced::Text::new(format!("Speed: {speed}")))
                     .push(iced::Slider::new(
                         &mut self.speed,
                         1..=max_speed,

@@ -7,8 +7,10 @@ macro_rules! declare_sorts {
     (|$lock:ident, $size:ident| {
         $($sort:ident: $func:expr => O($speed:expr))+
     }) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+        #[allow(clippy::enum_variant_names)]
         pub enum Sort {
+            #[default]
             $($sort),+
         }
 
@@ -74,15 +76,9 @@ declare_sorts! {
     }
 }
 
-impl Default for Sort {
-    fn default() -> Self {
-        Sort::BubbleSort
-    }
-}
-
 impl std::fmt::Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

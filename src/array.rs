@@ -23,17 +23,11 @@ impl Step {
     }
 
     pub fn is_comparison(&self) -> bool {
-        match self {
-            Step::Comparison(_) | Step::ComparisonTwo(_, _) => true,
-            _ => false,
-        }
+        matches!(self, Step::Comparison(_) | Step::ComparisonTwo(_, _))
     }
 
     pub fn is_access(&self) -> bool {
-        match self {
-            Step::Access(_) | Step::AccessTwo(_, _) => true,
-            _ => false,
-        }
+        matches!(self, Step::Access(_) | Step::AccessTwo(_, _))
     }
 
     pub fn values(&self) -> Vec<usize> {
@@ -158,6 +152,6 @@ impl ArrayState {
 
 impl canvas::Program<crate::Message> for ArrayState {
     fn draw(&self, bounds: iced::Rectangle, _: canvas::Cursor) -> Vec<canvas::Geometry> {
-        self.view.draw(bounds, &self.numbers, self.step.clone())
+        self.view.draw(bounds, &self.numbers, self.step)
     }
 }
