@@ -1,4 +1,4 @@
-use std::{cmp, sync, thread, time};
+use std::{cmp, marker::PhantomPinned, pin::Pin, sync, thread, time};
 
 use super::sort;
 use crate::{
@@ -137,51 +137,63 @@ pub struct ArrayLock {
     receiver: sync::mpsc::Receiver<Message>,
     counter: u64,
     instant: time::Instant,
+    _pinned: PhantomPinned,
 }
 
 impl ArrayLock {
-    fn new(array_state: SyncArray, receiver: sync::mpsc::Receiver<Message>) -> ArrayLock {
-        ArrayLock {
-            array_state,
-            array_lock: None,
-            receiver,
-            counter: 0,
-            instant: time::Instant::now(),
+    fn new(array_state: SyncArray, receiver: sync::mpsc::Receiver<Message>) -> Pin<Box<ArrayLock>> {
+        // safety: Since this returns an owning pointer with exclusive access to the lock it will not move.
+        unsafe {
+            Pin::new_unchecked(Box::new(ArrayLock {
+                array_state,
+                array_lock: None,
+                receiver,
+                counter: 0,
+                instant: time::Instant::now(),
+                _pinned: PhantomPinned,
+            }))
         }
     }
 
-    fn perform_step<F, T>(&mut self, step: F) -> ArrayResult<T>
+    fn perform_step<F, T>(self: &mut Pin<Box<Self>>, step: F) -> ArrayResult<T>
     where
         F: FnOnce(&mut array::ArrayState) -> T,
     {
-        if self.counter == 0
-            || self.counter % crate::TIME_OUT_CHECK == 0
-                && self.instant.elapsed() > crate::DELAY_TIME
-        {
-            self.array_lock = None;
+        // safety: The lock won't be moved, so this is safe.
+        let this = unsafe { self.as_mut().get_unchecked_mut() };
 
-            match self.receiver.recv().unwrap_or(Message::Kill) {
+        if this.counter == 0
+            || this.counter % crate::TIME_OUT_CHECK == 0
+                && this.instant.elapsed() > crate::DELAY_TIME
+        {
+            this.array_lock = None;
+
+            match this.receiver.recv().unwrap_or(Message::Kill) {
                 Message::Kill => return Err(()),
-                Message::Step => self.counter = 1,
+                Message::Step => this.counter = 1,
                 Message::Tick(count, instant) => {
-                    self.counter = count;
-                    self.instant = instant;
+                    this.counter = count;
+                    this.instant = instant;
                 }
             }
 
-            self.array_lock =
-                unsafe { std::mem::transmute(Some(self.array_state.lock().unwrap())) };
+            // This changes the mutex guards lifetime to be unbound.
+            //
+            // safety: This type can only be aquired in a Pin<Box<_>>, so the guard will not be invalidated.
+            // the mutex will also never be moved stay alive until the guard is dropped.
+            this.array_lock =
+                unsafe { std::mem::transmute(Some(this.array_state.lock().unwrap())) };
         }
 
-        self.counter -= 1;
+        this.counter -= 1;
 
-        Ok(step(&mut *self.array_lock.as_deref_mut().unwrap()))
+        Ok(step(&mut *this.array_lock.as_deref_mut().unwrap()))
     }
 }
 
 macro_rules! wrap_array_op {
     ($name:ident, ($($arg:ident : $argtype:ty),*) -> $ret:ty) => {
-        pub fn $name(&mut self, $($arg:$argtype),*) -> ArrayResult<$ret> {
+        pub fn $name(self: &mut Pin<Box<Self>>, $($arg:$argtype),*) -> ArrayResult<$ret> {
             self.perform_step(|array_state_argument| {
                 array_state_argument.$name($($arg),*)
             })

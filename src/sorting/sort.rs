@@ -1,7 +1,11 @@
 use crate::sorting::wrapping;
 use std::cmp;
 
+use std::pin::Pin;
+
 type SortResult = Result<(), ()>;
+
+type Lock = Pin<Box<wrapping::ArrayLock>>;
 
 macro_rules! declare_sorts {
     (|$lock:ident, $size:ident| {
@@ -17,7 +21,7 @@ macro_rules! declare_sorts {
         impl Sort {
             pub const VALUES: &'static[Sort] = &[$(Sort::$sort),+];
 
-            pub fn sort(&self, mut $lock: wrapping::ArrayLock, $size: usize) -> SortResult {
+            pub fn sort(&self, mut $lock: Lock, $size: usize) -> SortResult {
                 let $lock = &mut $lock;
                 match self {
                     $(Sort::$sort => {$func}),+
@@ -62,7 +66,7 @@ declare_sorts! {
         SlowSort:
             Sort::slow_sort(lock, 0, size - 1)  => O(size.pow(3) / 1000)
         QuickSort:
-            Sort::quick_sort(lock, 0, size - 1, &mut rand::thread_rng()) => O(size * size.ilog2() as u64 / 100)
+            Sort::quick_sort(lock, 0, size - 1) => O(size * size.ilog2() as u64 / 100)
         MergeSort:
             Sort::merge_sort(lock, 0, size - 1) => O(size * size.ilog2() as u64 / 100)
         HeapSort:
@@ -83,7 +87,7 @@ impl std::fmt::Display for Sort {
 }
 
 impl Sort {
-    fn bubble_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn bubble_sort(lock: &mut Lock, size: usize) -> SortResult {
         for i in 1..size {
             let mut abort = true;
             for j in 0..size - i {
@@ -101,7 +105,7 @@ impl Sort {
         Ok(())
     }
 
-    fn shaker_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn shaker_sort(lock: &mut Lock, size: usize) -> SortResult {
         for i in 1..size / 2 + 1 {
             let mut abort = true;
             for j in i - 1..size - i {
@@ -131,7 +135,7 @@ impl Sort {
         Ok(())
     }
 
-    fn exchange_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn exchange_sort(lock: &mut Lock, size: usize) -> SortResult {
         for i in 0..size - 1 {
             for j in i + 1..size {
                 if lock.cmp_two(i, j)?.is_gt() {
@@ -143,7 +147,7 @@ impl Sort {
         Ok(())
     }
 
-    fn cycle_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn cycle_sort(lock: &mut Lock, size: usize) -> SortResult {
         let mut buf = vec![false; size];
         for i in 0..size - 1 {
             if buf[i] {
@@ -163,10 +167,10 @@ impl Sort {
                     buf[index] = true;
 
                     let new = lock.get(index)?;
-                    lock.set(index, current)?;
+                    wrapping::ArrayLock::set(lock, index, current)?;
                     current = new;
                 } else {
-                    lock.set(i, current)?;
+                    wrapping::ArrayLock::set(lock, i, current)?;
 
                     break;
                 }
@@ -176,7 +180,7 @@ impl Sort {
         Ok(())
     }
 
-    fn comb_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn comb_sort(lock: &mut Lock, size: usize) -> SortResult {
         let mut gap = size;
         const SHRINK: f32 = 1.3;
         let mut sorted = false;
@@ -199,7 +203,7 @@ impl Sort {
         Ok(())
     }
 
-    fn odd_even_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn odd_even_sort(lock: &mut Lock, size: usize) -> SortResult {
         let mut sorted = false;
 
         while !sorted {
@@ -218,24 +222,24 @@ impl Sort {
         Ok(())
     }
 
-    fn insertion_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn insertion_sort(lock: &mut Lock, size: usize) -> SortResult {
         for i in 1..size {
             let current = lock.get(i)?;
 
             let mut j = i;
             while j > 0 && lock.cmp(j - 1, current)?.is_gt() {
                 let x = lock.get(j - 1)?;
-                lock.set(j, x)?;
+                wrapping::ArrayLock::set(lock, j, x)?;
                 j -= 1;
             }
 
-            lock.set(j, current)?;
+            wrapping::ArrayLock::set(lock, j, current)?;
         }
 
         Ok(())
     }
 
-    fn shell_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn shell_sort(lock: &mut Lock, size: usize) -> SortResult {
         let mut gap = size;
 
         while gap > 1 {
@@ -248,18 +252,18 @@ impl Sort {
 
                 while j >= gap && lock.cmp(j - gap, tmp)?.is_gt() {
                     let x = lock.get(j - gap)?;
-                    lock.set(j, x)?;
+                    wrapping::ArrayLock::set(lock, j, x)?;
                     j -= gap;
                 }
 
-                lock.set(j, tmp)?;
+                wrapping::ArrayLock::set(lock, j, tmp)?;
             }
         }
 
         Ok(())
     }
 
-    fn selection_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn selection_sort(lock: &mut Lock, size: usize) -> SortResult {
         for i in 0..size - 1 {
             let mut min = i;
             for j in i + 1..size {
@@ -275,7 +279,7 @@ impl Sort {
         Ok(())
     }
 
-    fn double_selection_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn double_selection_sort(lock: &mut Lock, size: usize) -> SortResult {
         for i in 0..size / 2 {
             let mut min = i;
             let mut max = size - i - 1;
@@ -302,7 +306,7 @@ impl Sort {
         Ok(())
     }
 
-    fn strand_sort(lock: &mut wrapping::ArrayLock, size: usize) -> SortResult {
+    fn strand_sort(lock: &mut Lock, size: usize) -> SortResult {
         let mut index = 0;
         while index < size {
             let mut len = 1;
@@ -332,14 +336,14 @@ impl Sort {
             }
 
             for (i, v) in tmp.iter().enumerate() {
-                lock.set(i, *v)?;
+                wrapping::ArrayLock::set(lock, i, *v)?;
             }
         }
 
         Ok(())
     }
 
-    fn stooge_sort(lock: &mut wrapping::ArrayLock, start: usize, end: usize) -> SortResult {
+    fn stooge_sort(lock: &mut Lock, start: usize, end: usize) -> SortResult {
         if end == start + 1 && lock.cmp_two(start, end)?.is_gt() {
             lock.swap(start, end)?;
         }
@@ -354,7 +358,7 @@ impl Sort {
         Ok(())
     }
 
-    fn slow_sort(lock: &mut wrapping::ArrayLock, start: usize, end: usize) -> SortResult {
+    fn slow_sort(lock: &mut Lock, start: usize, end: usize) -> SortResult {
         if start < end {
             let m = (start + end) / 2;
             Sort::slow_sort(lock, start, m)?;
@@ -370,12 +374,7 @@ impl Sort {
         Ok(())
     }
 
-    fn quick_sort(
-        lock: &mut wrapping::ArrayLock,
-        start: usize,
-        end: usize,
-        rng: &mut rand::prelude::ThreadRng,
-    ) -> SortResult {
+    fn quick_sort(lock: &mut Lock, start: usize, end: usize) -> SortResult {
         if end <= start {
             return Ok(());
         }
@@ -402,16 +401,16 @@ impl Sort {
         }
 
         if l > start {
-            Sort::quick_sort(lock, start, l - 1, rng)?;
+            Sort::quick_sort(lock, start, l - 1)?;
         }
         if l < end {
-            Sort::quick_sort(lock, l + 1, end, rng)?;
+            Sort::quick_sort(lock, l + 1, end)?;
         }
 
         Ok(())
     }
 
-    fn merge_sort(lock: &mut wrapping::ArrayLock, start: usize, end: usize) -> SortResult {
+    fn merge_sort(lock: &mut Lock, start: usize, end: usize) -> SortResult {
         if end == start + 1 && lock.cmp_two(start, end)?.is_gt() {
             lock.swap(start, end)?;
         } else if end > start + 1 {
@@ -433,14 +432,14 @@ impl Sort {
             }
 
             for (index, val) in tmp.iter().enumerate() {
-                lock.set(start + index, *val)?;
+                wrapping::ArrayLock::set(lock, start + index, *val)?;
             }
         }
 
         Ok(())
     }
 
-    fn heap_sort(lock: &mut wrapping::ArrayLock, max: usize) -> SortResult {
+    fn heap_sort(lock: &mut Lock, max: usize) -> SortResult {
         for i in (0..=max / 2).rev() {
             Sort::heapify_down(lock, i, max)?;
         }
@@ -453,8 +452,8 @@ impl Sort {
         Ok(())
     }
 
-    fn heapify_down(lock: &mut wrapping::ArrayLock, index: usize, max: usize) -> SortResult {
-        if 2 * index + 1 <= max {
+    fn heapify_down(lock: &mut Lock, index: usize, max: usize) -> SortResult {
+        if 2 * index < max {
             let tmp_max =
                 if 2 * index + 2 <= max && lock.cmp_two(2 * index + 1, 2 * index + 2)?.is_lt() {
                     2 * index + 2
@@ -473,7 +472,7 @@ impl Sort {
     }
 
     fn counting_sort(
-        lock: &mut wrapping::ArrayLock,
+        lock: &mut Lock,
         size: usize,
         buckets: usize,
         transform: impl Fn(usize) -> usize,
@@ -495,13 +494,13 @@ impl Sort {
         for v in vals {
             let key = transform(v - 1);
             keys[key] -= 1;
-            lock.set(keys[key], v)?;
+            wrapping::ArrayLock::set(lock, keys[key], v)?;
         }
 
         Ok(())
     }
 
-    fn radix_sort(lock: &mut wrapping::ArrayLock, size: usize, base: usize) -> SortResult {
+    fn radix_sort(lock: &mut Lock, size: usize, base: usize) -> SortResult {
         let mut i = 1;
 
         while size / i > 0 {
