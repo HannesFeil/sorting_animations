@@ -117,7 +117,8 @@ impl Sorter {
         fn initialize(size: usize) -> ();
         fn array_view() -> array::ArrayView;
         fn comparisons() -> u64;
-        fn accesses() -> u64;
+        fn reads() -> u64;
+        fn writes() -> u64;
         fn reset_stats() -> ();
         fn get_view() -> gui::View;
         fn set_view(view: gui::View) -> ();

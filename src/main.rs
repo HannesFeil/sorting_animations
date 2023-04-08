@@ -183,7 +183,7 @@ impl iced::Application for SortingAnimations {
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         iced::time::every(DELAY_TIME).map(Message::Tick)
     }
-
+    #[rustfmt::skip]
     fn view(&mut self) -> iced::Element<Self::Message> {
         let content = iced::Column::new()
             .push(
@@ -198,10 +198,21 @@ impl iced::Application for SortingAnimations {
                         iced::Length::Shrink,
                     ))
                     .push(iced::Text::new(format!(
-                        "Accesses: {}",
-                        self.sorter.accesses()
+                        "Reads: {}",
+                        self.sorter.reads()
                     )))
-                    .push(iced::Space::new(iced::Length::Fill, iced::Length::Shrink))
+                    .push(iced::Space::new(
+                        iced::Length::Units(50),
+                        iced::Length::Shrink,
+                    ))
+                    .push(iced::Text::new(format!(
+                        "Writes: {}",
+                        self.sorter.writes()
+                    )))
+                    .push(iced::Space::new(
+                        iced::Length::Fill,
+                        iced::Length::Shrink
+                    ))
                     .push(
                         iced::Toggler::new(self.muted, String::from("Mute  "), Message::Mute)
                             .width(iced::Length::Shrink),
