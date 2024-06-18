@@ -22,6 +22,7 @@ pub fn main() -> iced::Result {
 
             ..iced::window::Settings::default()
         },
+        default_text_size: 14,
 
         ..iced::Settings::default()
     })
@@ -183,6 +184,7 @@ impl iced::Application for SortingAnimations {
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         iced::time::every(DELAY_TIME).map(Message::Tick)
     }
+
     #[rustfmt::skip]
     fn view(&mut self) -> iced::Element<Self::Message> {
         let content = iced::Column::new()
